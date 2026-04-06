@@ -1,30 +1,68 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import styles from './Sidebar.module.css'
 
-function TreeNode({ node, onSelect, selectedPath }) {
-  const [open, setOpen] = useState(true)
+const EXT_ICON = {
+  js: '🟨', jsx: '🟨',
+  ts: '🔷', tsx: '🔷',
+  py: '🐍',
+  md: '📝',
+  json: '{}',
+}
+
+function fileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase()
+  return EXT_ICON[ext] ?? '📄'
+}
+
+function countNodes(node) {
+  let files = 0, folders = 0
+  for (const child of node.children ?? []) {
+    if (child.type === 'tree') { folders++; const c = countNodes(child); files += c.files; folders += c.folders }
+    else files++
+  }
+  return { files, folders }
+}
+
+function TreeNode({ node, depth, onFileClick, selectedFile }) {
+  const [open, setOpen] = useState(depth < 2)
   const isDir = node.type === 'tree'
+  const indent = depth * 16
 
   if (!isDir) {
+    const selected = selectedFile === node.path
     return (
       <div
-        className={`${styles.file} ${selectedPath === node.path ? styles.active : ''}`}
-        onClick={() => onSelect(node.path)}
+        className={`${styles.row} ${selected ? styles.selected : ''}`}
+        style={{ paddingLeft: 12 + indent }}
+        onClick={() => onFileClick(node)}
+        title={node.path}
       >
-        📄 {node.name}
+        <span className={styles.icon}>{fileIcon(node.name)}</span>
+        <span className={styles.label}>{node.name}</span>
       </div>
     )
   }
 
   return (
-    <div className={styles.dir}>
-      <div className={styles.dirLabel} onClick={() => setOpen(o => !o)}>
-        {open ? '▾' : '▸'} 📁 {node.name}
+    <div>
+      <div
+        className={styles.row}
+        style={{ paddingLeft: 12 + indent }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className={styles.arrow}>{open ? '▾' : '▸'}</span>
+        <span className={`${styles.icon} ${styles.folderIcon}`}>{node.name}</span>
       </div>
       {open && (
-        <div className={styles.children}>
+        <div>
           {node.children.map(child => (
-            <TreeNode key={child.path} node={child} onSelect={onSelect} selectedPath={selectedPath} />
+            <TreeNode
+              key={child.path || child.name}
+              node={child}
+              depth={depth + 1}
+              onFileClick={onFileClick}
+              selectedFile={selectedFile}
+            />
           ))}
         </div>
       )}
@@ -32,7 +70,9 @@ function TreeNode({ node, onSelect, selectedPath }) {
   )
 }
 
-export default function Sidebar({ tree, onSelectFile, selectedFile, collapsed, onToggle }) {
+export default function Sidebar({ tree, onFileClick, selectedFile, collapsed, onToggle }) {
+  const counts = useMemo(() => tree ? countNodes(tree) : { files: 0, folders: 0 }, [tree])
+
   return (
     <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
       <div className={styles.header}>
@@ -41,16 +81,30 @@ export default function Sidebar({ tree, onSelectFile, selectedFile, collapsed, o
           {collapsed ? '›' : '‹'}
         </button>
       </div>
+
       {!collapsed && (
-        <div className={styles.tree}>
-          {!tree ? (
-            <span className={styles.empty}>No repo loaded</span>
-          ) : (
-            tree.children.map(child => (
-              <TreeNode key={child.path} node={child} onSelect={onSelectFile} selectedPath={selectedFile} />
-            ))
+        <>
+          {tree && (
+            <div className={styles.counts}>
+              {counts.files} files, {counts.folders} folders
+            </div>
           )}
-        </div>
+          <div className={styles.tree}>
+            {!tree ? (
+              <span className={styles.empty}>No repo loaded</span>
+            ) : (
+              tree.children.map(child => (
+                <TreeNode
+                  key={child.path || child.name}
+                  node={child}
+                  depth={0}
+                  onFileClick={onFileClick}
+                  selectedFile={selectedFile}
+                />
+              ))
+            )}
+          </div>
+        </>
       )}
     </aside>
   )

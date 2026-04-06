@@ -9,9 +9,7 @@
   overflow: hidden;
 }
 
-.collapsed {
-  width: 36px;
-}
+.collapsed { width: 36px; }
 
 .header {
   display: flex;
@@ -23,48 +21,64 @@
   flex-shrink: 0;
 }
 
-.toggle {
-  font-size: 18px;
-  color: var(--text-muted);
-  line-height: 1;
-}
-
+.toggle { font-size: 18px; color: var(--text-muted); line-height: 1; }
 .toggle:hover { color: var(--text); }
+
+.counts {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
 
 .tree {
   overflow-y: auto;
   flex: 1;
-  padding: 8px 0;
+  padding: 4px 0;
 }
 
-.empty {
-  color: var(--text-muted);
-  padding: 12px;
-  font-size: 12px;
-}
+.empty { color: var(--text-muted); padding: 12px; font-size: 12px; }
 
-.file {
-  padding: 3px 12px;
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  padding-right: 8px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text-muted);
+  border-radius: 4px;
+  margin: 0 4px;
   font-size: 13px;
+  color: var(--text-muted);
 }
 
-.file:hover { background: var(--hover); color: var(--text); }
-.active { background: var(--hover); color: var(--accent) !important; }
+.row:hover { background: var(--hover); color: var(--text); }
 
-.dir { font-size: 13px; }
+.selected {
+  background: #1f3a5f !important;
+  color: #58a6ff !important;
+}
 
-.dirLabel {
-  padding: 3px 12px;
-  cursor: pointer;
-  white-space: nowrap;
+.arrow {
+  color: #e3b341;
+  font-size: 11px;
+  flex-shrink: 0;
+  width: 12px;
+}
+
+.icon { flex-shrink: 0; font-size: 13px; }
+
+.folderIcon {
+  color: #e3b341;
   font-weight: 500;
+  font-style: normal;
 }
 
-.dirLabel:hover { background: var(--hover); }
-
-.children { padding-left: 14px; }
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -88,7 +88,7 @@ export default function App() {
       <div className={styles.body}>
         <Sidebar
           tree={tree}
-          onSelectFile={path => { handleSelectFile(path) }}
+          onFileClick={node => handleSelectFile(node.path)}
           selectedFile={selectedFile}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(c => !c)}
