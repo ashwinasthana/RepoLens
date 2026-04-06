@@ -1,62 +1,158 @@
 import styles from './FileDetail.module.css'
 
-export default function FileDetail({ filePath, content, summary, dependencies, commits, loading }) {
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+const EXT_LANG = {
+  js: 'JavaScript', jsx: 'JavaScript',
+  ts: 'TypeScript', tsx: 'TypeScript',
+  py: 'Python', rb: 'Ruby', go: 'Go',
+  rs: 'Rust', java: 'Java', cs: 'C#',
+  cpp: 'C++', c: 'C', php: 'PHP',
+  html: 'HTML', css: 'CSS', scss: 'SCSS',
+  json: 'JSON', md: 'Markdown', yml: 'YAML', yaml: 'YAML',
+  sh: 'Shell', sql: 'SQL',
+}
+
+const ENTRY_NAMES = new Set(['index.js', 'index.jsx', 'index.ts', 'index.tsx', 'main.py', 'app.js', 'app.jsx', 'app.ts', 'app.tsx', 'main.js', 'main.ts'])
+
+function getExt(filename) {
+  return filename.split('.').pop().toLowerCase()
+}
+
+function parseDeps(content) {
+  if (!content) return { local: [], npm: [] }
+  const found = new Set()
+  const re = /(?:import\s+(?:.*?\s+from\s+)?|require\s*\(\s*)['"]([^'"]+)['"]/g
+  let m
+  while ((m = re.exec(content)) !== null) found.add(m[1])
+  const local = [], npm = []
+  for (const dep of found) {
+    if (dep.startsWith('.')) local.push(dep)
+    else npm.push(dep)
+  }
+  return { local, npm }
+}
+
+function parseExports(content) {
+  if (!content) return []
+  const found = new Set()
+  const patterns = [
+    /export\s+(?:default\s+)?(?:function|class|const|let|var)\s+(\w+)/g,
+    /export\s+\{\s*([^}]+)\}/g,
+  ]
+  for (const re of patterns) {
+    let m
+    while ((m = re.exec(content)) !== null) {
+      m[1].split(',').forEach(s => {
+        const name = s.trim().split(/\s+as\s+/).pop().trim()
+        if (name) found.add(name)
+      })
+    }
+  }
+  return [...found]
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function SectionLabel({ children }) {
+  return <p className={styles.label}>{children}</p>
+}
+
+function Skeleton() {
+  return (
+    <div className={styles.skeletonWrap}>
+      <div className={`${styles.skeleton} ${styles.skLong}`} />
+      <div className={`${styles.skeleton} ${styles.skMed}`} />
+      <div className={`${styles.skeleton} ${styles.skShort}`} />
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function FileDetail({ file, content, summary, isLoading }) {
+  if (!file) return null
+
+  const filename = file.split('/').pop()
+  const ext = getExt(filename)
+  const lang = EXT_LANG[ext] ?? ext.toUpperCase()
+  const isEntry = ENTRY_NAMES.has(filename)
+
   const lines = content ? content.split('\n').length : 0
-  const size = content ? (new Blob([content]).size / 1024).toFixed(1) : 0
+  const kb = content ? (new Blob([content]).size / 1024).toFixed(1) : '0.0'
+
+  const { local, npm } = parseDeps(content)
+  const exports_ = parseExports(content)
 
   return (
-    <div className={styles.detail}>
-      <h2 className={styles.title}>{filePath}</h2>
+    <div className={styles.wrap}>
 
-      <div className={styles.stats}>
-        <span>📏 {lines} lines</span>
-        <span>💾 {size} KB</span>
+      {/* 1 ── Header */}
+      <div className={styles.header}>
+        <span className={styles.filename}>{filename}</span>
+        <span className={styles.extBadge}>.{ext}</span>
+        {isEntry && <span className={styles.entryBadge}>Entry point</span>}
       </div>
 
+      {/* 2 ── Stats row */}
+      <div className={styles.statsRow}>
+        <div className={styles.card}>
+          <span className={styles.cardVal}>{lines.toLocaleString()}</span>
+          <span className={styles.cardKey}>Lines</span>
+        </div>
+        <div className={styles.card}>
+          <span className={styles.cardVal}>{kb} KB</span>
+          <span className={styles.cardKey}>Size</span>
+        </div>
+        <div className={styles.card}>
+          <span className={styles.cardVal}>{lang}</span>
+          <span className={styles.cardKey}>Language</span>
+        </div>
+      </div>
+
+      {/* 3 ── AI summary */}
       <section className={styles.section}>
-        <h3>Summary</h3>
-        {loading ? (
-          <p className={styles.muted}>Generating summary…</p>
-        ) : (
-          <p>{summary || <span className={styles.muted}>No summary available.</span>}</p>
-        )}
+        <SectionLabel>What this file does</SectionLabel>
+        <div className={styles.summaryCard}>
+          {isLoading ? <Skeleton /> : (
+            <p className={styles.summaryText}>
+              {summary || <span className={styles.muted}>No summary available.</span>}
+            </p>
+          )}
+        </div>
       </section>
 
+      {/* 4 ── Dependencies */}
       <section className={styles.section}>
-        <h3>Dependencies</h3>
-        {loading ? (
-          <p className={styles.muted}>Extracting dependencies…</p>
-        ) : dependencies && dependencies.length > 0 ? (
-          <ul className={styles.deps}>
-            {dependencies.map((d, i) => <li key={i}>{d}</li>)}
-          </ul>
-        ) : (
-          <p className={styles.muted}>None detected.</p>
-        )}
+        <SectionLabel>Dependencies</SectionLabel>
+        {local.length === 0 && npm.length === 0
+          ? <p className={styles.muted}>None detected.</p>
+          : (
+            <div className={styles.pillGroup}>
+              {npm.map(d => <span key={d} className={`${styles.pill} ${styles.pillNpm}`}>{d}</span>)}
+              {local.map(d => <span key={d} className={`${styles.pill} ${styles.pillLocal}`}>{d}</span>)}
+            </div>
+          )
+        }
       </section>
 
+      {/* 5 ── Key exports */}
       <section className={styles.section}>
-        <h3>Recent Commits</h3>
-        {commits && commits.length > 0 ? (
-          <ul className={styles.commits}>
-            {commits.map(c => (
-              <li key={c.sha}>
-                <span className={styles.sha}>{c.sha.slice(0, 7)}</span>
-                <span>{c.commit.message.split('\n')[0]}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className={styles.muted}>No commit history loaded.</p>
-        )}
+        <SectionLabel>Key exports</SectionLabel>
+        {exports_.length === 0
+          ? <p className={styles.muted}>None detected.</p>
+          : (
+            <ul className={styles.exportList}>
+              {exports_.map(e => (
+                <li key={e} className={styles.exportItem}>
+                  <span className={styles.exportIcon}>ƒ</span>{e}
+                </li>
+              ))}
+            </ul>
+          )
+        }
       </section>
 
-      {content && (
-        <section className={styles.section}>
-          <h3>Preview</h3>
-          <pre className={styles.preview}>{content.slice(0, 2000)}{content.length > 2000 ? '\n…' : ''}</pre>
-        </section>
-      )}
     </div>
   )
 }

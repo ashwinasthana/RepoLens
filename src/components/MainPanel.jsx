@@ -52,12 +52,10 @@ export default function MainPanel({ repoInfo, repoSummary, selectedFile, fileDat
           !selectedFile
             ? <EmptyState />
             : <FileDetail
-                filePath={selectedFile}
+                file={selectedFile}
                 content={fileData?.content}
                 summary={fileData?.summary}
-                dependencies={fileData?.dependencies}
-                commits={fileData?.commits}
-                loading={aiLoading}
+                isLoading={aiLoading}
               />
         )}
         {activeTab !== 'Tree' && <Placeholder tab={activeTab} />}

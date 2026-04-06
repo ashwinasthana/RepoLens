@@ -1,83 +1,177 @@
-.detail {
-  padding: 20px;
-  overflow-y: auto;
-  height: 100%;
-}
-
-.title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--accent);
-  margin-bottom: 12px;
-  word-break: break-all;
-}
-
-.stats {
+.wrap {
+  padding: 24px;
   display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
-  color: var(--text-muted);
-  font-size: 13px;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.section {
-  margin-bottom: 24px;
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.section h3 {
-  font-size: 13px;
+.filename {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e6edf3;
+}
+
+.extBadge {
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: #21262d;
+  border: 1px solid var(--border);
+  color: #8b949e;
+  font-family: monospace;
 }
 
-.muted { color: var(--text-muted); font-size: 13px; }
+.entryBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: #1a3a2a;
+  border: 1px solid #2ea043;
+  color: #3fb950;
+}
 
-.deps {
-  list-style: none;
+/* ── Stats row ── */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.card {
+  background: #161b22;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cardVal {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e6edf3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardKey {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8b949e;
+}
+
+/* ── Section label ── */
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8b949e;
+  margin-bottom: 10px;
+}
+
+.section { display: flex; flex-direction: column; }
+
+/* ── Summary card ── */
+.summaryCard {
+  background: #161b22;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  min-height: 72px;
+}
+
+.summaryText {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #c9d1d9;
+}
+
+.muted { font-size: 13px; color: #8b949e; }
+
+/* ── Skeleton loader ── */
+.skeletonWrap { display: flex; flex-direction: column; gap: 8px; }
+
+.skeleton {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #21262d 25%, #30363d 50%, #21262d 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+.skLong  { width: 100%; }
+.skMed   { width: 75%; }
+.skShort { width: 50%; }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Dependency pills ── */
+.pillGroup {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.deps li {
-  background: var(--sidebar);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 2px 8px;
+.pill {
   font-size: 12px;
   font-family: monospace;
-  color: var(--accent);
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid;
 }
 
-.commits { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.pillNpm {
+  background: #1a2a3a;
+  border-color: #1f6feb;
+  color: #58a6ff;
+}
 
-.commits li {
+.pillLocal {
+  background: #1a2a1a;
+  border-color: #2ea043;
+  color: #3fb950;
+}
+
+/* ── Exports list ── */
+.exportList {
+  list-style: none;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exportItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
-  align-items: baseline;
-}
-
-.sha {
   font-family: monospace;
-  color: var(--accent);
-  flex-shrink: 0;
+  color: #c9d1d9;
+  padding: 4px 0;
+  border-bottom: 1px solid #21262d;
 }
 
-.preview {
-  background: var(--sidebar);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
-  font-size: 12px;
-  overflow-x: auto;
-  white-space: pre;
-  max-height: 300px;
-  overflow-y: auto;
-  color: var(--text-muted);
+.exportIcon {
+  color: #d2a8ff;
+  font-size: 14px;
+  font-style: italic;
+  width: 14px;
+  flex-shrink: 0;
 }
