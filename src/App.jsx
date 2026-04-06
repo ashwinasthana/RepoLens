@@ -2,80 +2,67 @@ import { useState } from 'react'
 import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
 import MainPanel from './components/MainPanel'
-import { parseGithubUrl, fetchFileTree, fetchFileContent } from './services/github'
-import { summarizeFile, extractDependencies, summarizeRepo } from './services/ai'
+import { parseGithubUrl, fetchRepoInfo, fetchFileTree, fetchFileContent } from './services/github'
+import { analyzeFile } from './services/ai'
 import styles from './App.module.css'
 
-const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN || ''
-const AI_KEY = import.meta.env.VITE_OPENAI_KEY || ''
-
 export default function App() {
-  const [loading, setLoading] = useState(false)
-  const [aiLoading, setAiLoading] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [repoUrl, setRepoUrl] = useState('')
-  const [repoInfo, setRepoInfo] = useState(null)
-  const [repoSummary, setRepoSummary] = useState('')
-  const [tree, setTree] = useState(null)
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [fileCache, setFileCache] = useState({})
-  const [error, setError] = useState('')
+  const [repoUrl,     setRepoUrl]     = useState('')
+  const [isLoading,   setIsLoading]   = useState(false)
+  const [fileTree,    setFileTree]    = useState(null)
+  const [selectedFile, setSelectedFile] = useState(null)   // full node object
+  const [fileContent, setFileContent] = useState('')
+  const [fileSummary, setFileSummary] = useState(null)     // analyzeFile() result
+  const [error,       setError]       = useState('')
 
+  // Sidebar collapse is purely UI — keep it local
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  // ── repoContext string passed to analyzeFile ──
+  const [repoContext, setRepoContext] = useState('')
+
+  // ── 1. Analyze repo ───────────────────────────────────────────────────────
   async function handleAnalyze(url) {
-    setLoading(true)
+    setIsLoading(true)
     setError('')
-    setRepoInfo(null)
-    setTree(null)
+    setFileTree(null)
     setSelectedFile(null)
-    setFileCache({})
-    setRepoSummary('')
+    setFileContent('')
+    setFileSummary(null)
+
     try {
       const { owner, repo } = parseGithubUrl(url)
-      const [infoRes, treeRoot] = await Promise.all([
-        fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-          headers: { Accept: 'application/vnd.github+json', ...(GITHUB_TOKEN ? { Authorization: `Bearer ${GITHUB_TOKEN}` } : {}) }
-        }).then(r => r.json()),
+      const [info, tree] = await Promise.all([
+        fetchRepoInfo(owner, repo),
         fetchFileTree(owner, repo),
       ])
-      setRepoInfo(infoRes)
-      setTree(treeRoot)
       setRepoUrl(url)
-
-      if (AI_KEY) {
-        setAiLoading(true)
-        summarizeRepo(infoRes, [], AI_KEY)
-          .then(s => setRepoSummary(s))
-          .finally(() => setAiLoading(false))
-      }
+      setFileTree(tree)
+      setRepoContext(`${info.full_name} — ${info.description ?? ''} (${info.language ?? 'unknown'})`)
     } catch (e) {
       setError(e.message)
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
-  async function handleSelectFile(filePath) {
-    setSelectedFile(filePath)
-    if (fileCache[filePath]) return
+  // ── 2. File clicked in sidebar ────────────────────────────────────────────
+  async function handleFileClick(node) {
+    if (node.type === 'tree') return          // folder click — nothing to load
+    setSelectedFile(node)
+    setFileContent('')
+    setFileSummary(null)
+    setError('')
 
     try {
       const { owner, repo } = parseGithubUrl(repoUrl)
-      const content = await fetchFileContent(owner, repo, filePath)
-      const commits = []
-      const entry = { content, commits, summary: '', dependencies: [] }
-      setFileCache(c => ({ ...c, [filePath]: entry }))
+      const content = await fetchFileContent(owner, repo, node.path)
+      setFileContent(content)
 
-      if (AI_KEY) {
-        setAiLoading(true)
-        const [summary, depsRaw] = await Promise.all([
-          summarizeFile(filePath, content, AI_KEY),
-          extractDependencies(filePath, content, AI_KEY),
-        ])
-        let deps = []
-        try { deps = JSON.parse(depsRaw) } catch { deps = [] }
-        setFileCache(c => ({ ...c, [filePath]: { ...c[filePath], summary, dependencies: deps } }))
-        setAiLoading(false)
-      }
+      // AI analysis — non-blocking; update summary when ready
+      analyzeFile(node.name, content, repoContext)
+        .then(result => setFileSummary(result))
+        .catch(e => setError(`AI error: ${e.message}`))
     } catch (e) {
       setError(e.message)
     }
@@ -83,22 +70,37 @@ export default function App() {
 
   return (
     <div className={styles.app}>
-      <Navbar onAnalyze={handleAnalyze} loading={loading} />
-      {error && <div className={styles.error}>⚠ {error}</div>}
+      <Navbar onAnalyze={handleAnalyze} loading={isLoading} />
+
+      {error && (
+        <div className={styles.errorBanner}>
+          <span>⚠</span> {error}
+          <button className={styles.errorDismiss} onClick={() => setError('')}>✕</button>
+        </div>
+      )}
+
       <div className={styles.body}>
+        {/* Loading overlay — shown while fetching the tree */}
+        {isLoading && (
+          <div className={styles.loadingOverlay}>
+            <span className={styles.spinner} />
+            <p className={styles.loadingText}>Scanning repository…</p>
+          </div>
+        )}
+
         <Sidebar
-          tree={tree}
-          onFileClick={node => handleSelectFile(node.path)}
-          selectedFile={selectedFile}
+          tree={fileTree}
+          onFileClick={handleFileClick}
+          selectedFile={selectedFile?.path}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(c => !c)}
         />
+
         <MainPanel
-          repoInfo={repoInfo}
-          repoSummary={repoSummary}
-          selectedFile={selectedFile}
-          fileData={fileCache[selectedFile]}
-          aiLoading={aiLoading}
+          selectedFile={selectedFile?.path ?? null}
+          fileData={selectedFile ? { content: fileContent, summary: fileSummary?.summary ?? '', dependencies: fileSummary?.keyExports ?? [] } : null}
+          aiLoading={!!selectedFile && !fileSummary}
+          fileSummary={fileSummary}
         />
       </div>
     </div>

@@ -100,6 +100,15 @@
   color: #c9d1d9;
 }
 
+.purposeText {
+  font-size: 12px;
+  font-weight: 600;
+  color: #58a6ff;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .muted { font-size: 13px; color: #8b949e; }
 
 /* ── Skeleton loader ── */

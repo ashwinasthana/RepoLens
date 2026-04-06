@@ -23,7 +23,12 @@ export function parseGithubUrl(url) {
   return { owner: parts[0], repo: parts[1] }
 }
 
-// 2. Fetch the full file tree as nested { name, path, type, children[] }
+// 2. Fetch basic repo metadata
+export async function fetchRepoInfo(owner, repo) {
+  return ghFetch(`/repos/${owner}/${repo}`)
+}
+
+// 3. Fetch the full file tree as nested { name, path, type, children[] }
 export async function fetchFileTree(owner, repo) {
   const data = await ghFetch(`/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`)
   if (data.truncated) console.warn('Tree truncated — repo is very large')

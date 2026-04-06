@@ -27,7 +27,7 @@ function Placeholder({ tab }) {
   )
 }
 
-export default function MainPanel({ repoInfo, repoSummary, selectedFile, fileData, aiLoading }) {
+export default function MainPanel({ selectedFile, fileData, aiLoading, fileSummary }) {
   const [activeTab, setActiveTab] = useState('Tree')
 
   return (
@@ -55,6 +55,7 @@ export default function MainPanel({ repoInfo, repoSummary, selectedFile, fileDat
                 file={selectedFile}
                 content={fileData?.content}
                 summary={fileData?.summary}
+                fileSummary={fileSummary}
                 isLoading={aiLoading}
               />
         )}

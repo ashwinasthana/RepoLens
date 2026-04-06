@@ -70,7 +70,7 @@ function Skeleton() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function FileDetail({ file, content, summary, isLoading }) {
+export default function FileDetail({ file, content, summary, fileSummary, isLoading }) {
   if (!file) return null
 
   const filename = file.split('/').pop()
@@ -108,6 +108,12 @@ export default function FileDetail({ file, content, summary, isLoading }) {
           <span className={styles.cardVal}>{lang}</span>
           <span className={styles.cardKey}>Language</span>
         </div>
+        {fileSummary?.complexity && (
+          <div className={styles.card}>
+            <span className={styles.cardVal} style={{ textTransform: 'capitalize' }}>{fileSummary.complexity}</span>
+            <span className={styles.cardKey}>Complexity</span>
+          </div>
+        )}
       </div>
 
       {/* 3 ── AI summary */}
@@ -115,9 +121,14 @@ export default function FileDetail({ file, content, summary, isLoading }) {
         <SectionLabel>What this file does</SectionLabel>
         <div className={styles.summaryCard}>
           {isLoading ? <Skeleton /> : (
-            <p className={styles.summaryText}>
-              {summary || <span className={styles.muted}>No summary available.</span>}
-            </p>
+            <>
+              {fileSummary?.purpose && (
+                <p className={styles.purposeText}>{fileSummary.purpose}</p>
+              )}
+              <p className={styles.summaryText}>
+                {summary || <span className={styles.muted}>No summary available.</span>}
+              </p>
+            </>
           )}
         </div>
       </section>
@@ -152,6 +163,18 @@ export default function FileDetail({ file, content, summary, isLoading }) {
           )
         }
       </section>
+
+      {/* 6 ── Suggested next files (from Bedrock) */}
+      {fileSummary?.suggestedNextFiles?.length > 0 && (
+        <section className={styles.section}>
+          <SectionLabel>Read next</SectionLabel>
+          <div className={styles.pillGroup}>
+            {fileSummary.suggestedNextFiles.map(f => (
+              <span key={f} className={`${styles.pill} ${styles.pillLocal}`}>{f}</span>
+            ))}
+          </div>
+        </section>
+      )}
 
     </div>
   )
