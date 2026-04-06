@@ -2,70 +2,67 @@ import { useState } from 'react'
 import FileDetail from './FileDetail'
 import styles from './MainPanel.module.css'
 
+const TABS = ['Tree', 'Graph', 'Definitions', 'Onboarding']
+
+function EmptyState() {
+  return (
+    <div className={styles.empty}>
+      <span className={styles.emptyIcon}>🗂</span>
+      <p>Click any file or folder to explore</p>
+    </div>
+  )
+}
+
+function Placeholder({ tab }) {
+  const info = {
+    Graph:       { icon: '🕸', text: 'Dependency graph coming soon' },
+    Definitions: { icon: '📖', text: 'Symbol definitions coming soon' },
+    Onboarding:  { icon: '🚀', text: 'Onboarding guide coming soon' },
+  }[tab]
+  return (
+    <div className={styles.empty}>
+      <span className={styles.emptyIcon}>{info.icon}</span>
+      <p>{info.text}</p>
+    </div>
+  )
+}
+
 export default function MainPanel({ repoInfo, repoSummary, selectedFile, fileData, aiLoading }) {
-  const [tab, setTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('Tree')
 
   return (
     <div className={styles.panel}>
-      <div className={styles.tabs}>
-        <button
-          className={`${styles.tab} ${tab === 'overview' ? styles.active : ''}`}
-          onClick={() => setTab('overview')}
-        >
-          Overview
-        </button>
-        <button
-          className={`${styles.tab} ${tab === 'file' ? styles.active : ''}`}
-          onClick={() => setTab('file')}
-          disabled={!selectedFile}
-        >
-          File Details
-        </button>
+
+      {/* Sticky tab bar */}
+      <div className={styles.tabBar}>
+        {TABS.map(tab => (
+          <button
+            key={tab}
+            className={`${styles.tab} ${activeTab === tab ? styles.active : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab}
+          </button>
+        ))}
       </div>
 
+      {/* Tab content */}
       <div className={styles.content}>
-        {tab === 'overview' ? (
-          <div className={styles.overview}>
-            {!repoInfo ? (
-              <div className={styles.empty}>
-                <p>🔍 Enter a GitHub repository URL above to get started.</p>
-              </div>
-            ) : (
-              <>
-                <h2>{repoInfo.full_name}</h2>
-                <p className={styles.desc}>{repoInfo.description}</p>
-                <div className={styles.meta}>
-                  <span>⭐ {repoInfo.stargazers_count?.toLocaleString()}</span>
-                  <span>🍴 {repoInfo.forks_count?.toLocaleString()}</span>
-                  <span>🔤 {repoInfo.language}</span>
-                  <span>👁 {repoInfo.watchers_count?.toLocaleString()}</span>
-                </div>
-                <section className={styles.summaryBox}>
-                  <h3>AI Summary</h3>
-                  {aiLoading ? (
-                    <p className={styles.muted}>Generating summary…</p>
-                  ) : (
-                    <p>{repoSummary || <span className={styles.muted}>No summary yet.</span>}</p>
-                  )}
-                </section>
-              </>
-            )}
-          </div>
-        ) : (
-          selectedFile && fileData ? (
-            <FileDetail
-              filePath={selectedFile}
-              content={fileData.content}
-              summary={fileData.summary}
-              dependencies={fileData.dependencies}
-              commits={fileData.commits}
-              loading={aiLoading}
-            />
-          ) : (
-            <div className={styles.empty}><p>Select a file from the sidebar.</p></div>
-          )
+        {activeTab === 'Tree' && (
+          !selectedFile
+            ? <EmptyState />
+            : <FileDetail
+                filePath={selectedFile}
+                content={fileData?.content}
+                summary={fileData?.summary}
+                dependencies={fileData?.dependencies}
+                commits={fileData?.commits}
+                loading={aiLoading}
+              />
         )}
+        {activeTab !== 'Tree' && <Placeholder tab={activeTab} />}
       </div>
+
     </div>
   )
 }
