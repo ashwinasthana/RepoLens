@@ -1,0 +1,46 @@
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  height: 56px;
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.logo {
+  font-size: 16px;
+  white-space: nowrap;
+  color: var(--accent);
+}
+
+.form {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  max-width: 600px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn {
+  padding: 6px 16px;
+  background: var(--accent);
+  color: #0d1117;
+  border-radius: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn:not(:disabled):hover {
+  background: #79b8ff;
+}

@@ -1,0 +1,70 @@
+.sidebar {
+  width: 260px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.2s;
+  overflow: hidden;
+}
+
+.collapsed {
+  width: 36px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.toggle {
+  font-size: 18px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.toggle:hover { color: var(--text); }
+
+.tree {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 0;
+}
+
+.empty {
+  color: var(--text-muted);
+  padding: 12px;
+  font-size: 12px;
+}
+
+.file {
+  padding: 3px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.file:hover { background: var(--hover); color: var(--text); }
+.active { background: var(--hover); color: var(--accent) !important; }
+
+.dir { font-size: 13px; }
+
+.dirLabel {
+  padding: 3px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.dirLabel:hover { background: var(--hover); }
+
+.children { padding-left: 14px; }
