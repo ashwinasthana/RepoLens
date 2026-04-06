@@ -50,31 +50,31 @@ function TreeNode({ node, depth, onFileClick, selectedFile }) {
         style={{ paddingLeft: 12 + indent }}
         onClick={() => setOpen(o => !o)}
       >
-        <span className={styles.arrow}>{open ? '▾' : '▸'}</span>
+        <span className={`${styles.arrow} ${open ? styles.arrowOpen : ''}`}>▸</span>
         <span className={`${styles.icon} ${styles.folderIcon}`}>{node.name}</span>
       </div>
-      {open && (
-        <div>
-          {node.children.map(child => (
-            <TreeNode
-              key={child.path || child.name}
-              node={child}
-              depth={depth + 1}
-              onFileClick={onFileClick}
-              selectedFile={selectedFile}
-            />
-          ))}
-        </div>
-      )}
+      <div className={`${styles.children} ${open ? styles.childrenOpen : ''}`}>
+        {node.children.map(child => (
+          <TreeNode
+            key={child.path || child.name}
+            node={child}
+            depth={depth + 1}
+            onFileClick={onFileClick}
+            selectedFile={selectedFile}
+          />
+        ))}
+      </div>
     </div>
   )
 }
 
-export default function Sidebar({ tree, onFileClick, selectedFile, collapsed, onToggle }) {
+export default function Sidebar({ tree, onFileClick, selectedFile, collapsed, onToggle, drawerOpen, onDrawerClose }) {
   const counts = useMemo(() => tree ? countNodes(tree) : { files: 0, folders: 0 }, [tree])
 
   return (
-    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+    <>
+      {drawerOpen && <div className={styles.backdrop} onClick={onDrawerClose} />}
+      <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''} ${drawerOpen ? styles.drawerOpen : ''}`}>
       <div className={styles.header}>
         {!collapsed && <span>Files</span>}
         <button className={styles.toggle} onClick={onToggle} title="Toggle sidebar">
@@ -107,5 +107,6 @@ export default function Sidebar({ tree, onFileClick, selectedFile, collapsed, on
         </>
       )}
     </aside>
+    </>  
   )
 }

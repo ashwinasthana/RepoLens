@@ -85,6 +85,33 @@
 
 .section { display: flex; flex-direction: column; }
 
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.sectionHeader .label { margin-bottom: 0; }
+
+.copyBtn {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: #8b949e;
+  background: #21262d;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.copyBtn:hover { color: #e6edf3; border-color: #8b949e; }
+
+.copyDone {
+  color: #3fb950 !important;
+  border-color: #2ea043 !important;
+}
+
 /* ── Summary card ── */
 .summaryCard {
   background: #161b22;

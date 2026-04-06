@@ -2,29 +2,31 @@ import { useState } from 'react'
 import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
 import MainPanel from './components/MainPanel'
+import StatusBar from './components/StatusBar'
 import { parseGithubUrl, fetchRepoInfo, fetchFileTree, fetchFileContent } from './services/github'
 import { analyzeFile } from './services/ai'
 import styles from './App.module.css'
 
 export default function App() {
-  const [repoUrl,     setRepoUrl]     = useState('')
-  const [isLoading,   setIsLoading]   = useState(false)
-  const [fileTree,    setFileTree]    = useState(null)
-  const [selectedFile, setSelectedFile] = useState(null)   // full node object
-  const [fileContent, setFileContent] = useState('')
-  const [fileSummary, setFileSummary] = useState(null)     // analyzeFile() result
-  const [error,       setError]       = useState('')
+  const [repoUrl,      setRepoUrl]      = useState('')
+  const [repoInfo,     setRepoInfo]     = useState(null)
+  const [isLoading,    setIsLoading]    = useState(false)
+  const [fileTree,     setFileTree]     = useState(null)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [fileContent,  setFileContent]  = useState('')
+  const [fileSummary,  setFileSummary]  = useState(null)
+  const [error,        setError]        = useState('')
+  const [repoContext,  setRepoContext]  = useState('')
 
-  // Sidebar collapse is purely UI — keep it local
+  // UI-only state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-
-  // ── repoContext string passed to analyzeFile ──
-  const [repoContext, setRepoContext] = useState('')
+  const [drawerOpen,       setDrawerOpen]       = useState(false)
 
   // ── 1. Analyze repo ───────────────────────────────────────────────────────
   async function handleAnalyze(url) {
     setIsLoading(true)
     setError('')
+    setRepoInfo(null)
     setFileTree(null)
     setSelectedFile(null)
     setFileContent('')
@@ -37,6 +39,7 @@ export default function App() {
         fetchFileTree(owner, repo),
       ])
       setRepoUrl(url)
+      setRepoInfo(info)
       setFileTree(tree)
       setRepoContext(`${info.full_name} — ${info.description ?? ''} (${info.language ?? 'unknown'})`)
     } catch (e) {
@@ -48,18 +51,18 @@ export default function App() {
 
   // ── 2. File clicked in sidebar ────────────────────────────────────────────
   async function handleFileClick(node) {
-    if (node.type === 'tree') return          // folder click — nothing to load
+    if (node.type === 'tree') return
     setSelectedFile(node)
     setFileContent('')
     setFileSummary(null)
     setError('')
+    setDrawerOpen(false)   // close drawer on mobile after selecting a file
 
     try {
       const { owner, repo } = parseGithubUrl(repoUrl)
       const content = await fetchFileContent(owner, repo, node.path)
       setFileContent(content)
 
-      // AI analysis — non-blocking; update summary when ready
       analyzeFile(node.name, content, repoContext)
         .then(result => setFileSummary(result))
         .catch(e => setError(`AI error: ${e.message}`))
@@ -70,7 +73,11 @@ export default function App() {
 
   return (
     <div className={styles.app}>
-      <Navbar onAnalyze={handleAnalyze} loading={isLoading} />
+      <Navbar
+        onAnalyze={handleAnalyze}
+        loading={isLoading}
+        onMenuClick={() => setDrawerOpen(o => !o)}
+      />
 
       {error && (
         <div className={styles.errorBanner}>
@@ -80,7 +87,6 @@ export default function App() {
       )}
 
       <div className={styles.body}>
-        {/* Loading overlay — shown while fetching the tree */}
         {isLoading && (
           <div className={styles.loadingOverlay}>
             <span className={styles.spinner} />
@@ -94,15 +100,19 @@ export default function App() {
           selectedFile={selectedFile?.path}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(c => !c)}
+          drawerOpen={drawerOpen}
+          onDrawerClose={() => setDrawerOpen(false)}
         />
 
         <MainPanel
           selectedFile={selectedFile?.path ?? null}
-          fileData={selectedFile ? { content: fileContent, summary: fileSummary?.summary ?? '', dependencies: fileSummary?.keyExports ?? [] } : null}
+          fileData={selectedFile ? { content: fileContent, summary: fileSummary?.summary ?? '' } : null}
           aiLoading={!!selectedFile && !fileSummary}
           fileSummary={fileSummary}
         />
       </div>
+
+      <StatusBar repoInfo={repoInfo} fileTree={fileTree} />
     </div>
   )
 }

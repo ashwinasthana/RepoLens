@@ -1,8 +1,8 @@
 .nav {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 0 20px;
+  gap: 12px;
+  padding: 0 16px;
   height: 56px;
   background: var(--sidebar);
   border-bottom: 1px solid var(--border);
@@ -10,37 +10,67 @@
 }
 
 .logo {
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #58a6ff;
   white-space: nowrap;
-  color: var(--accent);
+  letter-spacing: -0.01em;
 }
 
 .form {
   display: flex;
   gap: 8px;
   flex: 1;
+  min-width: 0;
   max-width: 600px;
 }
 
-.input {
-  flex: 1;
-  min-width: 0;
-}
+.input { flex: 1; min-width: 0; }
 
 .btn {
   padding: 6px 16px;
-  background: var(--accent);
+  background: #58a6ff;
   color: #0d1117;
   border-radius: 6px;
   font-weight: 600;
   white-space: nowrap;
+  transition: background 0.15s ease;
 }
 
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn:not(:disabled):hover { background: #79b8ff; }
+
+.ghLink {
+  color: #8b949e;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
 }
 
-.btn:not(:disabled):hover {
-  background: #79b8ff;
+.ghLink:hover { color: #e6edf3; }
+
+/* Hamburger — hidden on desktop */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.hamburger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: #8b949e;
+  border-radius: 2px;
+  transition: background 0.15s ease;
+}
+
+.hamburger:hover span { background: #e6edf3; }
+
+@media (max-width: 768px) {
+  .hamburger { display: flex; }
+  .logo { display: none; }
 }

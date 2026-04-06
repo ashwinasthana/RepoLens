@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import styles from './FileDetail.module.css'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -71,6 +72,16 @@ function Skeleton() {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function FileDetail({ file, content, summary, fileSummary, isLoading }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    const text = summary || fileSummary?.summary || ''
+    if (!text) return
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
   if (!file) return null
 
   const filename = file.split('/').pop()
@@ -118,7 +129,14 @@ export default function FileDetail({ file, content, summary, fileSummary, isLoad
 
       {/* 3 ── AI summary */}
       <section className={styles.section}>
-        <SectionLabel>What this file does</SectionLabel>
+        <div className={styles.sectionHeader}>
+          <SectionLabel>What this file does</SectionLabel>
+          {!isLoading && (summary || fileSummary?.summary) && (
+            <button className={`${styles.copyBtn} ${copied ? styles.copyDone : ''}`} onClick={handleCopy}>
+              {copied ? '✓ Copied!' : 'Copy summary'}
+            </button>
+          )}
+        </div>
         <div className={styles.summaryCard}>
           {isLoading ? <Skeleton /> : (
             <>

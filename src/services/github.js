@@ -8,6 +8,7 @@ function ghHeaders() {
 }
 
 async function ghFetch(path) {
+  if (!path.startsWith('/')) throw new Error('Invalid API path')
   const res = await fetch(`${BASE}${path}`, { headers: ghHeaders() })
   if (!res.ok) throw new Error(`GitHub API error ${res.status}: ${res.statusText}`)
   return res.json()

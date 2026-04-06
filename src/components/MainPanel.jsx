@@ -49,17 +49,24 @@ export default function MainPanel({ selectedFile, fileData, aiLoading, fileSumma
       {/* Tab content */}
       <div className={styles.content}>
         {activeTab === 'Tree' && (
-          !selectedFile
-            ? <EmptyState />
-            : <FileDetail
-                file={selectedFile}
-                content={fileData?.content}
-                summary={fileData?.summary}
-                fileSummary={fileSummary}
-                isLoading={aiLoading}
-              />
+          <div key="Tree" className={styles.tabPane}>
+            {!selectedFile
+              ? <EmptyState />
+              : <FileDetail
+                  file={selectedFile}
+                  content={fileData?.content}
+                  summary={fileData?.summary}
+                  fileSummary={fileSummary}
+                  isLoading={aiLoading}
+                />
+            }
+          </div>
         )}
-        {activeTab !== 'Tree' && <Placeholder tab={activeTab} />}
+        {activeTab !== 'Tree' && (
+          <div key={activeTab} className={styles.tabPane}>
+            <Placeholder tab={activeTab} />
+          </div>
+        )}
       </div>
 
     </div>

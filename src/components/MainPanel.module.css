@@ -40,6 +40,15 @@
   min-height: 0;
 }
 
+.tabPane {
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 /* ── Empty / placeholder state ── */
 .empty {
   display: flex;
