@@ -7,7 +7,7 @@
   "host_permissions": [
     "https://github.com/*",
     "https://api.github.com/*",
-    "https://bedrock-runtime.*.amazonaws.com/*"
+    "https://api.groq.com/*"
   ],
   "background": {
     "service_worker": "background.js"
