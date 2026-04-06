@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "RepoLens",
+  "version": "1.0.0",
+  "description": "AI-powered GitHub repository analyzer",
+  "permissions": ["storage", "scripting"],
+  "host_permissions": [
+    "https://github.com/*",
+    "https://api.github.com/*",
+    "https://bedrock-runtime.*.amazonaws.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["sidebar.html", "sidebar.js", "services.js", "sidebar.css"],
+      "matches": ["https://github.com/*"]
+    }
+  ],
+  "action": {
+    "default_title": "RepoLens"
+  }
+}

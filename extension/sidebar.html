@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RepoLens</title>
+  <link rel="stylesheet" href="sidebar.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div id="header">
+    <div id="header-left">
+      <span id="logo">🔍 RepoLens</span>
+      <span id="repo-name">—</span>
+    </div>
+    <button id="close-btn" title="Close">✕</button>
+  </div>
+
+  <!-- Analyze button -->
+  <div id="analyze-bar">
+    <button id="analyze-btn">Analyze Repository</button>
+  </div>
+
+  <!-- Error -->
+  <div id="error-bar"></div>
+
+  <!-- Main body -->
+  <div id="body" style="position:relative">
+    <!-- Loading overlay -->
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <p id="loading-text">Scanning repository…</p>
+    </div>
+
+    <!-- File tree -->
+    <div id="tree-panel">
+      <div id="tree-header">Files</div>
+      <div id="tree-scroll">
+        <div class="detail-empty" style="height:100%;padding:20px 0">
+          <span class="icon">📂</span>
+          <span style="font-size:11px">Click Analyze</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- File detail -->
+    <div id="detail-panel">
+      <div class="detail-empty">
+        <span class="icon">🗂</span>
+        <span>Select a file</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div id="status-bar">
+    <span id="status-text">No repository loaded</span>
+  </div>
+
+</div>
+<script src="services.js"></script>
+<script src="sidebar.js"></script>
+</body>
+</html>
