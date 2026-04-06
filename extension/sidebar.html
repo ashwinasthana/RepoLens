@@ -23,12 +23,12 @@
     <button id="analyze-btn">Analyze Repository</button>
   </div>
 
-  <!-- Error -->
+  <!-- Error banner -->
   <div id="error-bar"></div>
 
-  <!-- Main body -->
-  <div id="body" style="position:relative">
-    <!-- Loading overlay -->
+  <!-- Main body: tree + detail, fills remaining height -->
+  <div id="body">
+    <!-- Loading overlay covers tree+detail while fetching -->
     <div id="loading-overlay">
       <div class="spinner"></div>
       <p id="loading-text">Scanning repository…</p>
@@ -38,7 +38,7 @@
     <div id="tree-panel">
       <div id="tree-header">Files</div>
       <div id="tree-scroll">
-        <div class="detail-empty" style="height:100%;padding:20px 0">
+        <div class="detail-empty">
           <span class="icon">📂</span>
           <span style="font-size:11px">Click Analyze</span>
         </div>
