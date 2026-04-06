@@ -19,11 +19,16 @@
 
 .tab {
   padding: 12px 20px;
-  font-size: 14px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 500;
   color: #8b949e;
   border-bottom: 2px solid transparent;
   transition: color 0.15s, border-color 0.15s;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .tab:hover { color: var(--text); }
@@ -61,7 +66,7 @@
   user-select: none;
 }
 
-.emptyIcon { font-size: 40px; }
+.emptyIcon { color: #30363d; }
 
 .empty p {
   font-size: 15px;

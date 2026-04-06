@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
 import MainPanel from './components/MainPanel'
@@ -21,6 +21,41 @@ export default function App() {
   // UI-only state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [drawerOpen,       setDrawerOpen]       = useState(false)
+
+  // ── Extension handoff ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('from') !== 'extension') return
+
+    const raw = localStorage.getItem('repolens_handoff')
+    if (!raw) return
+
+    try {
+      const handoff = JSON.parse(raw)
+      localStorage.removeItem('repolens_handoff')
+
+      // Clean the URL
+      window.history.replaceState({}, '', window.location.pathname)
+
+      if (handoff.repoUrl) {
+        handleAnalyze(handoff.repoUrl).then(() => {
+          // If a file was selected in the extension, auto-select it
+          if (handoff.file && handoff.content) {
+            const node = { path: handoff.file, name: handoff.file.split('/').pop(), type: 'blob' }
+            setSelectedFile(node)
+            setFileContent(handoff.content)
+
+            // Use cached analysis if available
+            if (handoff.analysis?.summary) {
+              setFileSummary(handoff.analysis.summary)
+            }
+          }
+        })
+      }
+    } catch (e) {
+      console.warn('[RepoLens] Failed to parse extension handoff:', e)
+    }
+  }, [])
 
   // ── 1. Analyze repo ───────────────────────────────────────────────────────
   async function handleAnalyze(url) {

@@ -1,4 +1,9 @@
 import { useState } from 'react'
+import {
+  IconSparkles, IconPackage, IconArrowRight, IconFunction,
+  IconCopy, IconCheck, IconDoorEnter, IconFileCode,
+  IconLines, IconFileZip, IconCode, IconGauge,
+} from '@tabler/icons-react'
 import styles from './FileDetail.module.css'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -55,8 +60,13 @@ function parseExports(content) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function SectionLabel({ children }) {
-  return <p className={styles.label}>{children}</p>
+function SectionLabel({ icon: Icon, children }) {
+  return (
+    <p className={styles.label}>
+      {Icon && <Icon size={13} stroke={1.8} />}
+      {children}
+    </p>
+  )
 }
 
 function Skeleton() {
@@ -100,27 +110,37 @@ export default function FileDetail({ file, content, summary, fileSummary, isLoad
 
       {/* 1 ── Header */}
       <div className={styles.header}>
+        <IconFileCode size={18} stroke={1.5} className={styles.headerIcon} />
         <span className={styles.filename}>{filename}</span>
         <span className={styles.extBadge}>.{ext}</span>
-        {isEntry && <span className={styles.entryBadge}>Entry point</span>}
+        {isEntry && (
+          <span className={styles.entryBadge}>
+            <IconDoorEnter size={12} stroke={2} />
+            Entry point
+          </span>
+        )}
       </div>
 
       {/* 2 ── Stats row */}
       <div className={styles.statsRow}>
         <div className={styles.card}>
+          <span className={styles.cardIcon}><IconLines size={16} stroke={1.5} /></span>
           <span className={styles.cardVal}>{lines.toLocaleString()}</span>
           <span className={styles.cardKey}>Lines</span>
         </div>
         <div className={styles.card}>
+          <span className={styles.cardIcon}><IconFileZip size={16} stroke={1.5} /></span>
           <span className={styles.cardVal}>{kb} KB</span>
           <span className={styles.cardKey}>Size</span>
         </div>
         <div className={styles.card}>
+          <span className={styles.cardIcon}><IconCode size={16} stroke={1.5} /></span>
           <span className={styles.cardVal}>{lang}</span>
           <span className={styles.cardKey}>Language</span>
         </div>
         {fileSummary?.complexity && (
           <div className={styles.card}>
+            <span className={styles.cardIcon}><IconGauge size={16} stroke={1.5} /></span>
             <span className={styles.cardVal} style={{ textTransform: 'capitalize' }}>{fileSummary.complexity}</span>
             <span className={styles.cardKey}>Complexity</span>
           </div>
@@ -130,10 +150,13 @@ export default function FileDetail({ file, content, summary, fileSummary, isLoad
       {/* 3 ── AI summary */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <SectionLabel>What this file does</SectionLabel>
+          <SectionLabel icon={IconSparkles}>What this file does</SectionLabel>
           {!isLoading && (summary || fileSummary?.summary) && (
             <button className={`${styles.copyBtn} ${copied ? styles.copyDone : ''}`} onClick={handleCopy}>
-              {copied ? '✓ Copied!' : 'Copy summary'}
+              {copied
+                ? <><IconCheck size={13} stroke={2} /> Copied!</>
+                : <><IconCopy size={13} stroke={1.5} /> Copy summary</>
+              }
             </button>
           )}
         </div>
@@ -153,7 +176,7 @@ export default function FileDetail({ file, content, summary, fileSummary, isLoad
 
       {/* 4 ── Dependencies */}
       <section className={styles.section}>
-        <SectionLabel>Dependencies</SectionLabel>
+        <SectionLabel icon={IconPackage}>Dependencies</SectionLabel>
         {local.length === 0 && npm.length === 0
           ? <p className={styles.muted}>None detected.</p>
           : (
@@ -167,14 +190,15 @@ export default function FileDetail({ file, content, summary, fileSummary, isLoad
 
       {/* 5 ── Key exports */}
       <section className={styles.section}>
-        <SectionLabel>Key exports</SectionLabel>
+        <SectionLabel icon={IconFunction}>Key exports</SectionLabel>
         {exports_.length === 0
           ? <p className={styles.muted}>None detected.</p>
           : (
             <ul className={styles.exportList}>
               {exports_.map(e => (
                 <li key={e} className={styles.exportItem}>
-                  <span className={styles.exportIcon}>ƒ</span>{e}
+                  <IconFunction size={13} stroke={1.5} className={styles.exportIcon} />
+                  {e}
                 </li>
               ))}
             </ul>
@@ -182,10 +206,10 @@ export default function FileDetail({ file, content, summary, fileSummary, isLoad
         }
       </section>
 
-      {/* 6 ── Suggested next files (from Bedrock) */}
+      {/* 6 ── Suggested next files */}
       {fileSummary?.suggestedNextFiles?.length > 0 && (
         <section className={styles.section}>
-          <SectionLabel>Read next</SectionLabel>
+          <SectionLabel icon={IconArrowRight}>Read next</SectionLabel>
           <div className={styles.pillGroup}>
             {fileSummary.suggestedNextFiles.map(f => (
               <span key={f} className={`${styles.pill} ${styles.pillLocal}`}>{f}</span>

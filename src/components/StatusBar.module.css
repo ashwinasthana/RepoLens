@@ -22,9 +22,6 @@
 .sep { opacity: 0.4; }
 
 .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #3fb950;
+  color: #3fb950;
   flex-shrink: 0;
 }

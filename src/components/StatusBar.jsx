@@ -1,3 +1,4 @@
+import { IconCircleFilled, IconCode, IconFiles, IconClock } from '@tabler/icons-react'
 import styles from './StatusBar.module.css'
 
 export default function StatusBar({ repoInfo, fileTree }) {
@@ -12,15 +13,24 @@ export default function StatusBar({ repoInfo, fileTree }) {
   return (
     <div className={styles.bar}>
       <span className={styles.item}>
-        <span className={styles.dot} />
+        <IconCircleFilled size={8} className={styles.dot} />
         {repoInfo.full_name}
       </span>
       <span className={styles.sep}>·</span>
-      <span className={styles.item}>{fileCount} files</span>
+      <span className={styles.item}>
+        <IconFiles size={12} stroke={1.5} />
+        {fileCount} files
+      </span>
       <span className={styles.sep}>·</span>
-      <span className={styles.item}>{repoInfo.language ?? 'Unknown'}</span>
+      <span className={styles.item}>
+        <IconCode size={12} stroke={1.5} />
+        {repoInfo.language ?? 'Unknown'}
+      </span>
       <span className={styles.sep}>·</span>
-      <span className={styles.item}>analyzed just now</span>
+      <span className={styles.item}>
+        <IconClock size={12} stroke={1.5} />
+        analyzed just now
+      </span>
     </div>
   )
 }

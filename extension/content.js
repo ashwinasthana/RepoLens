@@ -2,10 +2,10 @@
 (function () {
   'use strict'
 
-  // Guard: chrome.runtime must be available (can be missing if extension reloaded mid-session)
   if (typeof chrome === 'undefined' || !chrome.runtime) return
 
-  let iframe = null
+  let iframe     = null
+  let resizeBar  = null
   let injectTimer = null
 
   function isRepoPage() {
@@ -24,11 +24,11 @@
     if (!isRepoPage() || alreadyInjected()) return
 
     const btn = document.createElement('button')
-    btn.id          = 'repolens-btn'
+    btn.id = 'repolens-btn'
     btn.textContent = '🔍 RepoLens'
 
     Object.assign(btn.style, {
-      all:          'unset',           // reset ALL GitHub CSS that might bleed in
+      all:          'unset',
       position:     'fixed',
       top:          '70px',
       right:        '20px',
@@ -60,15 +60,11 @@
     injectTimer = setTimeout(injectButton, delay ?? 500)
   }
 
-  // ── Sidebar iframe ─────────────────────────────────────────────────────────
+  // ── Sidebar ────────────────────────────────────────────────────────────────
 
   function openSidebar() {
     console.log('[RepoLens] openSidebar called')
-
-    if (iframe) {
-      iframe.style.transform = 'translateX(0)'
-      return
-    }
+    if (iframe) { iframe.style.transform = 'translateX(0)'; return }
 
     try {
       const sidebarUrl = chrome.runtime.getURL('sidebar.html') +
@@ -79,7 +75,7 @@
       iframe.src = sidebarUrl
 
       Object.assign(iframe.style, {
-        all:        'unset',           // reset any inherited styles
+        all:        'unset',
         position:   'fixed',
         top:        '0',
         right:      '0',
@@ -94,14 +90,55 @@
       })
 
       document.body.appendChild(iframe)
-      console.log('[RepoLens] iframe appended, src =', sidebarUrl)
 
-      // Double rAF so the initial transform is painted before we animate
+      // ── Resize handle ───────────────────────────────────────────────────
+      resizeBar = document.createElement('div')
+      Object.assign(resizeBar.style, {
+        position:   'fixed',
+        top:        '0',
+        right:      '400px',
+        width:      '6px',
+        height:     '100vh',
+        zIndex:     '10001',
+        cursor:     'ew-resize',
+        background: 'transparent',
+        transition: 'background 0.15s',
+      })
+      resizeBar.addEventListener('mouseenter', () => { resizeBar.style.background = 'rgba(88,166,255,0.4)' })
+      resizeBar.addEventListener('mouseleave', () => { resizeBar.style.background = 'transparent' })
+      document.body.appendChild(resizeBar)
+
+      let startX = 0, startW = 0
+      resizeBar.addEventListener('mousedown', (e) => {
+        startX = e.clientX
+        startW = parseInt(iframe.style.width, 10)
+        document.body.style.userSelect = 'none'
+        resizeBar.style.background = 'rgba(88,166,255,0.6)'
+        document.addEventListener('mousemove', onMouseMove)
+        document.addEventListener('mouseup', onMouseUp)
+      })
+
+      function onMouseMove(e) {
+        const newW = Math.min(800, Math.max(320, startW + (startX - e.clientX)))
+        iframe.style.width    = newW + 'px'
+        resizeBar.style.right = newW + 'px'
+      }
+
+      function onMouseUp() {
+        document.body.style.userSelect = ''
+        resizeBar.style.background = 'transparent'
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+      }
+      // ────────────────────────────────────────────────────────────────────
+
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
           iframe.style.transform = 'translateX(0)'
         })
       )
+
+      console.log('[RepoLens] iframe + resize handle appended')
     } catch (err) {
       console.error('[RepoLens] openSidebar error:', err)
     }
@@ -113,6 +150,7 @@
     iframe.addEventListener('transitionend', () => {
       iframe.remove()
       iframe = null
+      if (resizeBar) { resizeBar.remove(); resizeBar = null }
     }, { once: true })
   }
 
@@ -128,13 +166,11 @@
     scheduleInject(500)
   })
 
-  // Turbo Drive swaps deep DOM nodes — subtree:true catches it
   const observer = new MutationObserver(() => {
     if (!alreadyInjected()) scheduleInject(500)
   })
   observer.observe(document.documentElement, { childList: true, subtree: true })
 
-  // ── Initial inject ─────────────────────────────────────────────────────────
   injectButton()
 
 })()

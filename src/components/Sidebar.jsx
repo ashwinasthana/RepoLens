@@ -1,17 +1,31 @@
 import { useState, useMemo } from 'react'
+import {
+  IconFile, IconFolder, IconFolderOpen,
+  IconBrandJavascript, IconBrandTypescript, IconBrandReact,
+  IconBrandPython, IconMarkdown, IconBraces, IconBrandHtml5,
+  IconBrandCss3, IconTerminal, IconDatabase, IconChevronRight,
+  IconLayoutSidebar, IconLayoutSidebarFilled,
+} from '@tabler/icons-react'
 import styles from './Sidebar.module.css'
 
 const EXT_ICON = {
-  js: '🟨', jsx: '🟨',
-  ts: '🔷', tsx: '🔷',
-  py: '🐍',
-  md: '📝',
-  json: '{}',
+  js:   IconBrandJavascript,
+  jsx:  IconBrandReact,
+  ts:   IconBrandTypescript,
+  tsx:  IconBrandReact,
+  py:   IconBrandPython,
+  md:   IconMarkdown,
+  json: IconBraces,
+  html: IconBrandHtml5,
+  css:  IconBrandCss3,
+  sh:   IconTerminal,
+  sql:  IconDatabase,
 }
 
-function fileIcon(name) {
+function FileIcon({ name, size = 15 }) {
   const ext = name.split('.').pop().toLowerCase()
-  return EXT_ICON[ext] ?? '📄'
+  const Icon = EXT_ICON[ext] ?? IconFile
+  return <Icon size={size} stroke={1.5} />
 }
 
 function countNodes(node) {
@@ -37,11 +51,13 @@ function TreeNode({ node, depth, onFileClick, selectedFile }) {
         onClick={() => onFileClick(node)}
         title={node.path}
       >
-        <span className={styles.icon}>{fileIcon(node.name)}</span>
+        <span className={styles.icon}><FileIcon name={node.name} /></span>
         <span className={styles.label}>{node.name}</span>
       </div>
     )
   }
+
+  const FolderIcon = open ? IconFolderOpen : IconFolder
 
   return (
     <div>
@@ -50,8 +66,13 @@ function TreeNode({ node, depth, onFileClick, selectedFile }) {
         style={{ paddingLeft: 12 + indent }}
         onClick={() => setOpen(o => !o)}
       >
-        <span className={`${styles.arrow} ${open ? styles.arrowOpen : ''}`}>▸</span>
-        <span className={`${styles.icon} ${styles.folderIcon}`}>{node.name}</span>
+        <span className={`${styles.arrow} ${open ? styles.arrowOpen : ''}`}>
+          <IconChevronRight size={12} stroke={2} />
+        </span>
+        <span className={styles.folderIcon}>
+          <FolderIcon size={15} stroke={1.5} />
+        </span>
+        <span className={styles.folderName}>{node.name}</span>
       </div>
       <div className={`${styles.children} ${open ? styles.childrenOpen : ''}`}>
         {node.children.map(child => (
@@ -71,14 +92,16 @@ function TreeNode({ node, depth, onFileClick, selectedFile }) {
 export default function Sidebar({ tree, onFileClick, selectedFile, collapsed, onToggle, drawerOpen, onDrawerClose }) {
   const counts = useMemo(() => tree ? countNodes(tree) : { files: 0, folders: 0 }, [tree])
 
+  const ToggleIcon = collapsed ? IconLayoutSidebar : IconLayoutSidebarFilled
+
   return (
     <>
       {drawerOpen && <div className={styles.backdrop} onClick={onDrawerClose} />}
       <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''} ${drawerOpen ? styles.drawerOpen : ''}`}>
       <div className={styles.header}>
-        {!collapsed && <span>Files</span>}
+        {!collapsed && <span className={styles.headerTitle}>Files</span>}
         <button className={styles.toggle} onClick={onToggle} title="Toggle sidebar">
-          {collapsed ? '›' : '‹'}
+          <ToggleIcon size={16} stroke={1.5} />
         </button>
       </div>
 

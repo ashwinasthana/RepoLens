@@ -90,13 +90,31 @@ async function analyzeFile(filename, content, repoContext, groqApiKey) {
         { role: 'system', content: 'You are a code analyst. Always respond with valid JSON only, no markdown fences.' },
         { role: 'user',   content: buildPrompt(filename, content, repoContext) },
       ],
-      temperature: 0.2,
-      max_tokens: 1024,
+      temperature: 0.2, max_tokens: 1024,
     }),
   })
   if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text().catch(() => res.statusText)}`)
   const data = await res.json()
   return parseAiJson(data.choices[0].message.content)
+}
+
+async function groqAsk(groqApiKey, filename, content, instruction) {
+  if (!groqApiKey) throw new Error('Groq API key not configured')
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqApiKey}` },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [
+        { role: 'system', content: 'You are an expert code analyst. Be thorough, specific, and practical.' },
+        { role: 'user',   content: `${instruction}\n\nFilename: ${filename}\n\nFile content:\n${content.slice(0, 4000)}` },
+      ],
+      temperature: 0.3, max_tokens: 2048,
+    }),
+  })
+  if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text().catch(() => res.statusText)}`)
+  const data = await res.json()
+  return data.choices[0].message.content
 }
 
 // ── Message handler ───────────────────────────────────────────────────────────
@@ -125,6 +143,14 @@ async function handleMessage(msg) {
     case 'FETCH_FILE_TREE':    return fetchFileTree(msg.owner, msg.repo, token)
     case 'FETCH_FILE_CONTENT': return fetchFileContent(msg.owner, msg.repo, msg.path, token)
     case 'ANALYZE_FILE':       return analyzeFile(msg.filename, msg.content, msg.repoContext, groqApiKey)
+    case 'EXPLAIN_FILE':       return groqAsk(groqApiKey, msg.filename, msg.content,
+      `Explain this file in detail for a developer new to the codebase. Go section by section, explain what each function/class does, why it exists, and how it connects to the rest of the system. Use plain English. Format with clear headings using \n\n## Heading\n.`)
+    case 'GRAPH_FILE':         return groqAsk(groqApiKey, msg.filename, msg.content,
+      `Analyze the dependency relationships in this file. Describe: 1) what this file imports and why, 2) what other files likely import this file, 3) where this file sits in the overall architecture. Be specific.`)
+    case 'DEFS_FILE':          return groqAsk(groqApiKey, msg.filename, msg.content,
+      `List and explain every exported function, class, constant, and type in this file. For each one: name, what it does, parameters/return value if applicable. Format clearly with each definition on its own line.`)
+    case 'ONBOARD_FILE':       return groqAsk(groqApiKey, msg.filename, msg.content,
+      `Write an onboarding guide for a new developer reading this file for the first time. Cover: 1) what problem this file solves, 2) key concepts they need to understand, 3) how to modify it safely, 4) common pitfalls. Be practical and specific.`)
     default: throw new Error(`Unknown message type: ${msg.type}`)
   }
 }

@@ -13,8 +13,14 @@
   flex-wrap: wrap;
 }
 
+.headerIcon {
+  color: #58a6ff;
+  flex-shrink: 0;
+}
+
 .filename {
-  font-size: 16px;
+  font-family: var(--font-heading);
+  font-size: 18px;
   font-weight: 700;
   color: #e6edf3;
 }
@@ -38,12 +44,15 @@
   background: #1a3a2a;
   border: 1px solid #2ea043;
   color: #3fb950;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* ── Stats row ── */
 .statsRow {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
 }
 
@@ -57,7 +66,15 @@
   gap: 4px;
 }
 
+.cardIcon {
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
 .cardVal {
+  font-family: var(--font-heading);
   font-size: 18px;
   font-weight: 700;
   color: #e6edf3;
@@ -75,12 +92,16 @@
 
 /* ── Section label ── */
 .label {
+  font-family: var(--font-heading);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #8b949e;
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .section { display: flex; flex-direction: column; }
@@ -103,6 +124,9 @@
   background: #21262d;
   transition: color 0.15s ease, border-color 0.15s ease;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .copyBtn:hover { color: #e6edf3; border-color: #8b949e; }
@@ -128,6 +152,7 @@
 }
 
 .purposeText {
+  font-family: var(--font-heading);
   font-size: 12px;
   font-weight: 600;
   color: #58a6ff;
@@ -206,8 +231,5 @@
 
 .exportIcon {
   color: #d2a8ff;
-  font-size: 14px;
-  font-style: italic;
-  width: 14px;
   flex-shrink: 0;
 }
