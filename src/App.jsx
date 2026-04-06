@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
 import MainPanel from './components/MainPanel'
-import { getRepoInfo, getRepoTree, getFileContent, getFileCommits } from './services/github'
+import { parseGithubUrl, fetchFileTree, fetchFileContent } from './services/github'
 import { summarizeFile, extractDependencies, summarizeRepo } from './services/ai'
 import styles from './App.module.css'
 
@@ -30,18 +30,20 @@ export default function App() {
     setFileCache({})
     setRepoSummary('')
     try {
-      const [info, treeData] = await Promise.all([
-        getRepoInfo(url, GITHUB_TOKEN),
-        getRepoTree(url, GITHUB_TOKEN),
+      const { owner, repo } = parseGithubUrl(url)
+      const [infoRes, treeRoot] = await Promise.all([
+        fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+          headers: { Accept: 'application/vnd.github+json', ...(GITHUB_TOKEN ? { Authorization: `Bearer ${GITHUB_TOKEN}` } : {}) }
+        }).then(r => r.json()),
+        fetchFileTree(owner, repo),
       ])
-      const files = treeData.tree.filter(f => f.type === 'blob')
-      setRepoInfo(info)
-      setTree(files)
+      setRepoInfo(infoRes)
+      setTree(treeRoot)
       setRepoUrl(url)
 
       if (AI_KEY) {
         setAiLoading(true)
-        summarizeRepo(info, files, AI_KEY)
+        summarizeRepo(infoRes, [], AI_KEY)
           .then(s => setRepoSummary(s))
           .finally(() => setAiLoading(false))
       }
@@ -57,10 +59,9 @@ export default function App() {
     if (fileCache[filePath]) return
 
     try {
-      const [content, commits] = await Promise.all([
-        getFileContent(repoUrl, filePath, GITHUB_TOKEN),
-        getFileCommits(repoUrl, filePath, GITHUB_TOKEN),
-      ])
+      const { owner, repo } = parseGithubUrl(repoUrl)
+      const content = await fetchFileContent(owner, repo, filePath)
+      const commits = []
       const entry = { content, commits, summary: '', dependencies: [] }
       setFileCache(c => ({ ...c, [filePath]: entry }))
 

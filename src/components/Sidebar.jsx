@@ -1,32 +1,17 @@
 import { useState } from 'react'
 import styles from './Sidebar.module.css'
 
-function buildTree(items) {
-  const root = {}
-  for (const item of items) {
-    const parts = item.path.split('/')
-    let node = root
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i]
-      if (!node[part]) node[part] = i === parts.length - 1 ? null : {}
-      if (node[part] !== null) node = node[part]
-    }
-  }
-  return root
-}
-
-function TreeNode({ name, node, path, onSelect, selectedPath }) {
+function TreeNode({ node, onSelect, selectedPath }) {
   const [open, setOpen] = useState(true)
-  const isDir = node !== null && typeof node === 'object'
-  const fullPath = path ? `${path}/${name}` : name
+  const isDir = node.type === 'tree'
 
   if (!isDir) {
     return (
       <div
-        className={`${styles.file} ${selectedPath === fullPath ? styles.active : ''}`}
-        onClick={() => onSelect(fullPath)}
+        className={`${styles.file} ${selectedPath === node.path ? styles.active : ''}`}
+        onClick={() => onSelect(node.path)}
       >
-        📄 {name}
+        📄 {node.name}
       </div>
     )
   }
@@ -34,12 +19,12 @@ function TreeNode({ name, node, path, onSelect, selectedPath }) {
   return (
     <div className={styles.dir}>
       <div className={styles.dirLabel} onClick={() => setOpen(o => !o)}>
-        {open ? '▾' : '▸'} 📁 {name}
+        {open ? '▾' : '▸'} 📁 {node.name}
       </div>
       {open && (
         <div className={styles.children}>
-          {Object.entries(node).map(([k, v]) => (
-            <TreeNode key={k} name={k} node={v} path={fullPath} onSelect={onSelect} selectedPath={selectedPath} />
+          {node.children.map(child => (
+            <TreeNode key={child.path} node={child} onSelect={onSelect} selectedPath={selectedPath} />
           ))}
         </div>
       )}
@@ -48,8 +33,6 @@ function TreeNode({ name, node, path, onSelect, selectedPath }) {
 }
 
 export default function Sidebar({ tree, onSelectFile, selectedFile, collapsed, onToggle }) {
-  const treeData = tree ? buildTree(tree) : null
-
   return (
     <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
       <div className={styles.header}>
@@ -60,11 +43,11 @@ export default function Sidebar({ tree, onSelectFile, selectedFile, collapsed, o
       </div>
       {!collapsed && (
         <div className={styles.tree}>
-          {!treeData ? (
+          {!tree ? (
             <span className={styles.empty}>No repo loaded</span>
           ) : (
-            Object.entries(treeData).map(([k, v]) => (
-              <TreeNode key={k} name={k} node={v} path="" onSelect={onSelectFile} selectedPath={selectedFile} />
+            tree.children.map(child => (
+              <TreeNode key={child.path} node={child} onSelect={onSelectFile} selectedPath={selectedFile} />
             ))
           )}
         </div>
