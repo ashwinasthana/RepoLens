@@ -51,44 +51,9 @@ async function fetchFileContent(owner, repo, path, token) {
   return atob(data.content.replace(/\n/g, ''))
 }
 
-// ── AWS SigV4 (Web Crypto) ────────────────────────────────────────────────────
-
-const _enc = new TextEncoder()
-const _buf2hex = buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
-const _sha256  = async d => _buf2hex(await crypto.subtle.digest('SHA-256', typeof d === 'string' ? _enc.encode(d) : d))
-const _hmac    = async (key, data) => {
-  const k = await crypto.subtle.importKey('raw', typeof key === 'string' ? _enc.encode(key) : key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-  return crypto.subtle.sign('HMAC', k, _enc.encode(data))
-}
-
-async function _signingKey(secret, date, region, service) {
-  return _hmac(await _hmac(await _hmac(await _hmac(`AWS4${secret}`, date), region), service), 'aws4_request')
-}
-
-async function _signV4({ method, url, body, region, accessKey, secretKey, sessionToken }) {
-  const now       = new Date()
-  const amzDate   = now.toISOString().replace(/[:-]|\.\d{3}/g, '')
-  const dateStamp = amzDate.slice(0, 8)
-  const { host, pathname, search } = new URL(url)
-  const bodyHash  = await _sha256(body)
-  const headers   = {
-    'content-type': 'application/json', host,
-    'x-amz-date': amzDate, 'x-amz-content-sha256': bodyHash,
-    ...(sessionToken ? { 'x-amz-security-token': sessionToken } : {}),
-  }
-  const signedNames    = Object.keys(headers).sort().join(';')
-  const canonHeaders   = Object.keys(headers).sort().map(k => `${k}:${headers[k]}`).join('\n') + '\n'
-  const canonRequest   = [method, pathname, search.slice(1), canonHeaders, signedNames, bodyHash].join('\n')
-  const credScope      = `${dateStamp}/${region}/bedrock/aws4_request`
-  const strToSign      = `AWS4-HMAC-SHA256\n${amzDate}\n${credScope}\n${await _sha256(canonRequest)}`
-  const signature      = _buf2hex(await _hmac(await _signingKey(secretKey, dateStamp, region, 'bedrock'), strToSign))
-  return { ...headers, Authorization: `AWS4-HMAC-SHA256 Credential=${accessKey}/${credScope}, SignedHeaders=${signedNames}, Signature=${signature}` }
-}
-
-// ── Bedrock analyzeFile ───────────────────────────────────────────────────────
-
-const BEDROCK_MODEL = 'us.anthropic.claude-sonnet-4-20250514-v1:0'
-const AI_FALLBACK   = { summary: '', purpose: '', keyExports: [], complexity: 'low', suggestedNextFiles: [] }
+const GROQ_BASE  = 'https://api.groq.com/openai/v1'
+const GROQ_MODEL = 'llama-3.3-70b-versatile'
+const AI_FALLBACK = { summary: '', purpose: '', keyExports: [], complexity: 'low', suggestedNextFiles: [] }
 
 function _buildPrompt(filename, content, repoContext) {
   return `You are a code explanation assistant. Analyze this file from a GitHub repository.
@@ -115,17 +80,22 @@ function _parseAiJson(text) {
   catch { return { ...AI_FALLBACK, summary: text.trim() } }
 }
 
-async function analyzeFile(filename, content, repoContext, creds) {
-  const { accessKey, secretKey, sessionToken = '', region = 'us-east-1' } = creds
-  if (!accessKey || !secretKey) throw new Error('AWS credentials not configured')
-  const url  = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(BEDROCK_MODEL)}/converse`
-  const body = JSON.stringify({
-    messages: [{ role: 'user', content: [{ text: _buildPrompt(filename, content, repoContext) }] }],
-    inferenceConfig: { maxTokens: 1024, temperature: 0.2 },
+async function analyzeFile(filename, content, repoContext, groqApiKey) {
+  if (!groqApiKey) throw new Error('Groq API key not configured')
+  const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqApiKey}` },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [
+        { role: 'system', content: 'You are a code analyst. Always respond with valid JSON only, no markdown fences.' },
+        { role: 'user',   content: _buildPrompt(filename, content, repoContext) },
+      ],
+      temperature: 0.2,
+      max_tokens: 1024,
+    }),
   })
-  const signedHeaders = await _signV4({ method: 'POST', url, body, region, accessKey, secretKey, sessionToken })
-  const res = await fetch(url, { method: 'POST', headers: signedHeaders, body })
-  if (!res.ok) throw new Error(`Bedrock error ${res.status}: ${await res.text().catch(() => res.statusText)}`)
+  if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text().catch(() => res.statusText)}`)
   const data = await res.json()
-  return _parseAiJson(data?.output?.message?.content?.[0]?.text ?? '')
+  return _parseAiJson(data.choices[0].message.content)
 }
