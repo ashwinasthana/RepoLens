@@ -102,29 +102,48 @@ function parseJson(text, fallback = {}) {
 }
 
 // ── 1. File Analysis (Summary tab) ────────────────────────────────────────────
-
 export async function analyzeFile(filename, content, repoContext = '') {
-  const text = await groqChat([
-    { role: 'system', content: 'You are a code analyst. Always respond with valid JSON only, no markdown fences.' },
-    {
-      role: 'user', content: `You are a code explanation assistant. Analyze this file from a GitHub repository.
+  const groqApiKey = getGroqApiKey()
+  const hfToken = localStorage.getItem('repolens_hf_token')
 
-Repository context: ${repoContext}
-Filename: ${filename}
+  // 1. Try Groq
+  if (groqApiKey) {
+    try {
+      const text = await groqChat([
+        { role: 'system', content: 'You are a code analyst. Respond with valid JSON only.' },
+        { 
+          role: 'user', 
+          content: `Analyze this file from a GitHub repository.\nFilename: ${filename}\nContent:\n${content.slice(0, 1500)}\n\nRespond in JSON:\n{ "summary": "2 sentence explanation", "purpose": "main job", "keyExports": [], "complexity": "low|medium|high", "suggestedNextFiles": [] }` 
+        },
+      ], 400)
+      return parseJson(text, FALLBACK)
+    } catch (err) {
+      console.log("Groq web failed, falling back to HF:", err)
+    }
+  }
 
-File content:
-${content.slice(0, 1000)}
+  // 2. Try HF Fallback
+  if (hfToken) {
+    try {
+      const response = await fetch(
+        "https://api-inference.huggingface.co/models/ashwinasthana/repolens-model",
+        {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + hfToken, "Content-Type": "application/json" },
+          body: JSON.stringify({ inputs: "explain code: " + content.slice(0, 800) })
+        }
+      )
+      const result = await response.json()
+      const summaryText = Array.isArray(result) ? result[0]?.generated_text : result?.generated_text
+      if (summaryText) {
+        return { ...FALLBACK, summary: summaryText }
+      }
+    } catch (err) {
+      console.log("HF web fallback failed:", err)
+    }
+  }
 
-Respond in JSON format:
-{
-  "summary": "2-3 sentence plain English explanation of what this file does",
-  "purpose": "one line - the single main job of this file",
-  "keyExports": ["list", "of", "main", "exports"],
-  "complexity": "low|medium|high",
-  "suggestedNextFiles": ["files a new developer should read next"]
-}` },
-  ], 300)
-  return parseJson(text, FALLBACK)
+  return { ...FALLBACK, summary: "Analysis unavailable. Please check your API Engine Token." }
 }
 
 // ── 2. Repo Summary ──────────────────────────────────────────────────────────

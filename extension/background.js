@@ -168,7 +168,9 @@ async function analyzeFile(filename, content) {
   // 1. Try Groq FIRST (rich responses, always works)
   try {
     const { groqApiKey } = await chrome.storage.sync.get('groqApiKey');
-    if (groqApiKey) {
+    if (!groqApiKey) {
+      console.log("Groq skipped: No groqApiKey found in sync storage.");
+    } else {
       const response = await fetch(
         "https://api.groq.com/openai/v1/chat/completions",
         {
@@ -178,12 +180,13 @@ async function analyzeFile(filename, content) {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            model: "llama3-8b-8192",
+            model: "llama-3.1-8b-instant",
             messages: [{
               role: "user",
-              content: "Explain this code in 2 sentences: " + content.slice(0, 1000)
+              content: "Explain this code in 2 sentences. Be specific about its role in the project: " + content.slice(0, 1500)
             }],
-            max_tokens: 200
+            max_tokens: 300,
+            temperature: 0.2
           })
         }
       );
@@ -191,6 +194,8 @@ async function analyzeFile(filename, content) {
       if (data.choices?.[0]?.message?.content) {
         console.log("✅ Using Groq (Primary)");
         return { summary: data.choices[0].message.content };
+      } else {
+        console.warn("Groq responded but no content was found:", data);
       }
     }
   } catch (err) {
@@ -210,21 +215,28 @@ async function analyzeFile(filename, content) {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            inputs: "explain code: " + content.slice(0, 500)
+            inputs: "explain code: " + content.slice(0, 1000)
           })
         }
       );
       const result = await response.json();
-      if (Array.isArray(result) && result[0]?.generated_text) {
+      // Handle array or object response (some models vary)
+      const summaryText = Array.isArray(result) ? result[0]?.generated_text : result?.generated_text;
+      
+      if (summaryText) {
         console.log("✅ Using RepoLens custom model (Fallback)");
-        return { summary: result[0].generated_text };
+        return { summary: summaryText };
+      } else {
+        console.warn("HF responded but no generated_text found:", result);
       }
+    } else {
+      console.log("HF skipped: No hfToken found in sync storage.");
     }
   } catch (err) {
     console.log("HF fallback failed:", err);
   }
 
-  return { summary: "Analysis unavailable." };
+  return { summary: "Analysis unavailable. Please ensure your API keys are set in the extension settings." };
 }
 
 async function groqAsk(groqApiKey, filename, content, instruction) {
