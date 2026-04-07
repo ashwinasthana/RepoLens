@@ -46,19 +46,65 @@ export default function App() {
     }))
   }
 
+  async function runAnalysisStep(node, content, key, fn, label) {
+    try {
+      const result = await fn(node.name, content, repoContext)
+      setCached(node.path, key, result)
+    } catch (e) {
+      console.error(`${label} error:`, e)
+      addToast(`${label} analysis failed: ${e.message}`)
+      if (key === 'summary') setCached(node.path, 'summary', { summary: '', purpose: '', error: e.message })
+      if (key === 'graph') setCached(node.path, 'graph', { imports: [], error: e.message })
+      if (key === 'definitions') setCached(node.path, 'definitions', { definitions: [], error: e.message })
+      if (key === 'onboarding') setCached(node.path, 'onboarding', { whatItSolves: '', error: e.message })
+    }
+  }
+
+  function runAllAnalysesSequential(node, content, cached = {}) {
+    if (!cached.summary) {
+      setCached(node.path, 'summary', { loading: true })
+    }
+    if (!cached.graph) {
+      setCached(node.path, 'graph', { loading: true })
+    }
+    if (!cached.definitions) {
+      setCached(node.path, 'definitions', { loading: true })
+    }
+    if (!cached.onboarding) {
+      setCached(node.path, 'onboarding', { loading: true })
+    }
+
+    // Fire-and-forget sequential pipeline to avoid TPM bursts.
+    ;(async () => {
+      if (!cached.summary) {
+        await runAnalysisStep(node, content, 'summary', analyzeFile, 'Summary')
+      }
+      if (!cached.graph) {
+        await runAnalysisStep(node, content, 'graph', analyzeGraph, 'Graph')
+      }
+      if (!cached.definitions) {
+        await runAnalysisStep(node, content, 'definitions', analyzeDefinitions, 'Definitions')
+      }
+      if (!cached.onboarding) {
+        await runAnalysisStep(node, content, 'onboarding', analyzeOnboarding, 'Onboarding')
+      }
+    })()
+  }
+
   // ── Extension handoff ─────────────────────────────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const initRepo = params.get('repoUrl')
+    const initFile = params.get('file')
 
     if (initRepo) {
       window.history.replaceState({}, '', window.location.pathname)
-      handleAnalyze(initRepo)
+      handleAnalyze(initRepo, initFile)
     }
   }, [])
 
   // ── 1. Analyze repo ───────────────────────────────────────────────────────
-  async function handleAnalyze(url) {
+  async function handleAnalyze(url, initialFile = null) {
     setIsLoading(true)
     setError('')
     setRepoInfo(null)
@@ -77,6 +123,23 @@ export default function App() {
       setRepoInfo(info)
       setFileTree(tree)
       setRepoContext(`${info.full_name} — ${info.description ?? ''} (${info.language ?? 'unknown'})`)
+
+      // Auto-select file if provided
+      if (initialFile) {
+        // Flatten the tree to find the node
+        const findNode = (nodes, path) => {
+          for (const n of nodes) {
+            if (n.path === path) return n
+            if (n.children) {
+              const res = findNode(n.children, path)
+              if (res) return res
+            }
+          }
+          return null
+        }
+        const node = findNode(tree.children, initialFile)
+        if (node) handleFileClick(node, url)
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -85,7 +148,7 @@ export default function App() {
   }
 
   // ── 2. File clicked in sidebar ────────────────────────────────────────────
-  async function handleFileClick(node) {
+  async function handleFileClick(node, currentRepoUrl = repoUrl) {
     if (node.type === 'tree') return
     setSelectedFile(node)
     setFileContent('')
@@ -93,52 +156,13 @@ export default function App() {
     setDrawerOpen(false)
 
     try {
-      const { owner, repo } = parseGithubUrl(repoUrl)
+      const { owner, repo } = parseGithubUrl(currentRepoUrl)
       const content = await fetchFileContent(owner, repo, node.path)
       setFileContent(content)
 
-      // Fire all analyses in parallel (only if not cached)
+      // Run analyses sequentially (only if not cached) to reduce rate-limit spikes.
       const cached = getCached(node.path)
-
-      if (!cached.summary) {
-        analyzeFile(node.name, content, repoContext)
-          .then(result => setCached(node.path, 'summary', result))
-          .catch(e => {
-            console.error('Summary error:', e)
-            addToast(`Summary analysis failed: ${e.message}`)
-            setCached(node.path, 'summary', { summary: '', purpose: '', error: e.message })
-          })
-      }
-
-      if (!cached.graph) {
-        analyzeGraph(node.name, content, repoContext)
-          .then(result => setCached(node.path, 'graph', result))
-          .catch(e => {
-            console.error('Graph error:', e)
-            addToast(`Graph analysis failed: ${e.message}`)
-            setCached(node.path, 'graph', { imports: [], error: e.message })
-          })
-      }
-
-      if (!cached.definitions) {
-        analyzeDefinitions(node.name, content, repoContext)
-          .then(result => setCached(node.path, 'definitions', result))
-          .catch(e => {
-            console.error('Definitions error:', e)
-            addToast(`Definitions analysis failed: ${e.message}`)
-            setCached(node.path, 'definitions', { definitions: [], error: e.message })
-          })
-      }
-
-      if (!cached.onboarding) {
-        analyzeOnboarding(node.name, content, repoContext)
-          .then(result => setCached(node.path, 'onboarding', result))
-          .catch(e => {
-            console.error('Onboarding error:', e)
-            addToast(`Onboarding analysis failed: ${e.message}`)
-            setCached(node.path, 'onboarding', { whatItSolves: '', error: e.message })
-          })
-      }
+      runAllAnalysesSequential(node, content, cached)
     } catch (e) {
       setError(e.message)
     }
@@ -153,26 +177,10 @@ export default function App() {
       delete next[selectedFile.path]
       return next
     })
-    // Re-trigger analysis
+    // Re-trigger analysis sequentially
     const node = selectedFile
     const content = fileContent
-    const cached = {} // Force all fresh
-
-    analyzeFile(node.name, content, repoContext)
-      .then(result => setCached(node.path, 'summary', result))
-      .catch(e => addToast(`Summary retry failed: ${e.message}`))
-
-    analyzeGraph(node.name, content, repoContext)
-      .then(result => setCached(node.path, 'graph', result))
-      .catch(e => addToast(`Graph retry failed: ${e.message}`))
-
-    analyzeDefinitions(node.name, content, repoContext)
-      .then(result => setCached(node.path, 'definitions', result))
-      .catch(e => addToast(`Definitions retry failed: ${e.message}`))
-
-    analyzeOnboarding(node.name, content, repoContext)
-      .then(result => setCached(node.path, 'onboarding', result))
-      .catch(e => addToast(`Onboarding retry failed: ${e.message}`))
+    runAllAnalysesSequential(node, content, {})
   }
 
   const currentAnalysis = selectedFile ? getCached(selectedFile.path) : {}

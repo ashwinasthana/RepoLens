@@ -116,12 +116,89 @@ function highlightLine(line) {
   })
 }
 
+function renderMarkdown(text) {
+  if (!text) return ''
+
+  // Escape first, then selectively introduce safe HTML tags.
+  let md = escapeHtml(String(text)).replace(/\r\n?/g, '\n')
+
+  md = md.replace(/```([\w-]+)?\n([\s\S]*?)```/g, (_m, lang, code) => {
+    const cls = lang ? ` class="lang-${lang.toLowerCase()}"` : ''
+    return `<pre><code${cls}>${code.trim()}</code></pre>`
+  })
+
+  md = md.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
+  md = md.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
+  md = md.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
+  md = md.replace(/^>\s+(.+)$/gm, '<blockquote>$1</blockquote>')
+
+  md = md.replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
+  md = md.replace(/(?:<li>.*<\/li>\n?)+/g, match => `<ul>${match}</ul>`)
+
+  md = md.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  md = md.replace(/\*([^*]+)\*/g, '<em>$1</em>')
+  md = md.replace(/`([^`]+)`/g, '<code>$1</code>')
+  md = md.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+
+  return md
+    .split(/\n{2,}/)
+    .map(block => {
+      const t = block.trim()
+      if (!t) return ''
+      if (/^<(h1|h2|h3|ul|pre|blockquote)/.test(t)) return t
+      return `<p>${t.replace(/\n/g, '<br>')}</p>`
+    })
+    .join('')
+}
+
 function send(type, payload) {
+  const message = { type, ...payload }
   return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage({ type, ...payload }, res => {
-      if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message))
-      if (res?.error) return reject(new Error(res.error))
-      resolve(res)
+    let settled = false
+    const timeoutMs = AI_MESSAGE_TYPES.has(type) ? LONG_TIMEOUT_MS : SHORT_TIMEOUT_MS
+    const timeoutId = setTimeout(() => {
+      if (settled) return
+      settled = true
+      reject(new Error(`Request timed out (${type}). Try reloading the extension/page.`))
+    }, timeoutMs)
+
+    const finishResolve = value => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeoutId)
+      resolve(value)
+    }
+
+    const finishReject = err => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeoutId)
+      reject(err)
+    }
+
+    chrome.runtime.sendMessage(message, res => {
+      const runtimeErr = chrome.runtime.lastError?.message || ''
+      if (runtimeErr) {
+        if (/extension context invalidated/i.test(runtimeErr)) {
+          return finishReject(new Error('Extension reloaded. Refresh this GitHub page and try again.'))
+        }
+        return finishReject(new Error(runtimeErr))
+      }
+
+      if (res?.error) {
+        // Backward/forward compatibility fallback between chat message names.
+        if (type === 'CHAT_REPO' && /Unknown message type:\s*CHAT_REPO/i.test(res.error)) {
+          return chrome.runtime.sendMessage({ ...payload, type: 'CHAT' }, retryRes => {
+            const retryRuntimeErr = chrome.runtime.lastError?.message || ''
+            if (retryRuntimeErr) return finishReject(new Error(retryRuntimeErr))
+            if (retryRes?.error) return finishReject(new Error(retryRes.error))
+            return finishResolve(retryRes)
+          })
+        }
+        return finishReject(new Error(res.error))
+      }
+
+      finishResolve(res)
     })
   })
 }
@@ -135,6 +212,13 @@ function skeletonHTML(rows = 3) {
 function addToast(message, type = 'error') {
   const container = document.getElementById('toast-container')
   if (!container) return
+
+  const key = `${type}:${message}`
+  const now = Date.now()
+  const prev = recentToasts.get(key) || 0
+  if (now - prev < TOAST_DEDUP_WINDOW_MS) return
+  recentToasts.set(key, now)
+
   const toast = document.createElement('div')
   toast.className = `toast ${type === 'error' ? 'toast-error' : ''}`
   toast.textContent = message
@@ -190,7 +274,23 @@ let owner = '', repo = '', repoContext = '', selectedPath = ''
 let currentContent = '', currentNode = null
 let activeTab = 'summary'
 let tabCache = {}   // { [path]: { summary, explain, graph, definitions, onboarding } }
+let tabInFlight = {} // { ["path::tab"]: Promise<void> }
 let allTreeRows = [] // for file search
+
+const AI_TAB_TASKS = {
+  summary: { label: 'Summary', type: 'ANALYZE_FILE' },
+  explain: { label: 'Explain', type: 'EXPLAIN_FILE' },
+  graph: { label: 'Graph', type: 'GRAPH_FILE' },
+  definitions: { label: 'Definitions', type: 'DEFS_FILE' },
+  onboarding: { label: 'Onboarding', type: 'ONBOARD_FILE' },
+}
+const AI_TABS = new Set(Object.keys(AI_TAB_TASKS))
+const AI_MESSAGE_TYPES = new Set(['ANALYZE_FILE', 'EXPLAIN_FILE', 'GRAPH_FILE', 'DEFS_FILE', 'ONBOARD_FILE', 'CHAT_REPO', 'CHAT'])
+const SHORT_TIMEOUT_MS = 20000
+const LONG_TIMEOUT_MS = 75000
+const TOAST_DEDUP_WINDOW_MS = 6000
+const STALE_LOADING_MS = 90000
+const recentToasts = new Map()
 
 // ── DOM ───────────────────────────────────────────────────────────────────────
 
@@ -435,39 +535,62 @@ async function handleFileClick(node, rowEl) {
   }
 }
 
-// ── Fetch all tab data from Groq ──────────────────────────────────────────────
+// ── Fetch tab data from Groq (on-demand) ─────────────────────────────────────
 
 async function fetchTabData(node, content) {
   const path = node.path
-  if (tabCache[path]) return
+  tabCache[path] = tabCache[path] ?? {}
 
-  tabCache[path] = {}
+  // Hackathon-safe default: prefetch only summary.
+  await ensureTabData(node, content, 'summary')
+}
 
-  // All 5 prompts fired in parallel
-  const [summary, explain, graph, definitions, onboarding] = await Promise.allSettled([
-    send('ANALYZE_FILE', { filename: node.name, content, repoContext }),
-    send('EXPLAIN_FILE', { filename: node.name, content, repoContext }),
-    send('GRAPH_FILE',   { filename: node.name, content, repoContext }),
-    send('DEFS_FILE',    { filename: node.name, content, repoContext }),
-    send('ONBOARD_FILE', { filename: node.name, content, repoContext }),
-  ])
+function inflightKey(path, tabKey) {
+  return `${path}::${tabKey}`
+}
 
-  tabCache[path] = {
-    summary:     summary.status     === 'fulfilled' ? summary.value     : { error: summary.reason?.message || 'Failed' },
-    explain:     explain.status     === 'fulfilled' ? explain.value     : { error: explain.reason?.message || 'Failed' },
-    graph:       graph.status       === 'fulfilled' ? graph.value       : { error: graph.reason?.message || 'Failed' },
-    definitions: definitions.status === 'fulfilled' ? definitions.value : { error: definitions.reason?.message || 'Failed' },
-    onboarding:  onboarding.status  === 'fulfilled' ? onboarding.value  : { error: onboarding.reason?.message || 'Failed' },
+async function ensureTabData(node, content, tabKey, force = false) {
+  const task = AI_TAB_TASKS[tabKey]
+  if (!task) return
+
+  const path = node.path
+  tabCache[path] = tabCache[path] ?? {}
+
+  const existing = tabCache[path][tabKey]
+  const loadingTooLong = existing?.loading && typeof existing.startedAt === 'number' && (Date.now() - existing.startedAt > STALE_LOADING_MS)
+  if (loadingTooLong) {
+    tabCache[path][tabKey] = { error: 'Previous request stalled. Retrying…' }
   }
 
-  // Show toast for any failures
-  if (summary.status === 'rejected') addToast(`Summary failed: ${summary.reason?.message}`)
-  if (explain.status === 'rejected') addToast(`Explain failed: ${explain.reason?.message}`)
-  if (graph.status === 'rejected') addToast(`Graph failed: ${graph.reason?.message}`)
-  if (definitions.status === 'rejected') addToast(`Definitions failed: ${definitions.reason?.message}`)
-  if (onboarding.status === 'rejected') addToast(`Onboarding failed: ${onboarding.reason?.message}`)
+  const nextExisting = tabCache[path][tabKey]
+  if (nextExisting && !nextExisting.loading && !force) return
 
+  const key = inflightKey(path, tabKey)
+  if (tabInFlight[key]) return tabInFlight[key]
+
+  tabCache[path][tabKey] = { loading: true, startedAt: Date.now() }
+
+  const run = (async () => {
+    try {
+      const value = await send(task.type, { filename: node.name, content, repoContext })
+      if (value === undefined || value === null) {
+        tabCache[path][tabKey] = { error: 'Empty AI response. Please retry.' }
+      } else {
+        tabCache[path][tabKey] = value
+      }
+    } catch (err) {
+      const message = err?.message || 'Failed'
+      tabCache[path][tabKey] = { error: message }
+      addToast(`${task.label} failed: ${message}`)
+    } finally {
+      delete tabInFlight[key]
+      if (selectedPath === path) renderFileShell(node, content, tabCache[path])
+    }
+  })()
+
+  tabInFlight[key] = run
   if (selectedPath === path) renderFileShell(node, content, tabCache[path])
+  return run
 }
 
 // ── Render shell with tabs ────────────────────────────────────────────────────
@@ -516,6 +639,12 @@ function renderFileShell(node, content, cache) {
       $detailPanel.querySelectorAll('.view-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === activeTab))
       document.getElementById('tab-body').innerHTML = renderTabBody(activeTab, currentContent, tabCache[selectedPath] ?? null)
       bindTabActions()
+
+      if (AI_TABS.has(activeTab) && currentNode && typeof currentContent === 'string') {
+        const existing = tabCache[selectedPath]?.[activeTab]
+        const shouldForce = !!existing?.error
+        void ensureTabData(currentNode, currentContent, activeTab, shouldForce)
+      }
     })
   })
 
@@ -535,6 +664,10 @@ function renderFileShell(node, content, cache) {
   }
 
   bindTabActions()
+
+  if (AI_TABS.has(activeTab) && currentNode && typeof currentContent === 'string') {
+    void ensureTabData(currentNode, currentContent, activeTab)
+  }
 }
 
 // ── Bind copy buttons etc. inside tab content ─────────────────────────────────
@@ -558,14 +691,22 @@ function bindTabActions() {
 
 // ── Tab body renderer ─────────────────────────────────────────────────────────
 
+function renderTabError(msg) {
+  return `<div class="error-state">
+    <i class="ti ti-alert-triangle" style="font-size:24px; color:var(--danger)"></i>
+    <p>${escapeHtml(msg)}</p>
+  </div>`
+}
+
 function renderTabBody(tab, content, cache) {
-  if (!content && tab !== 'summary') return skeletonHTML(4)
+  if ((content === null || content === undefined) && tab !== 'summary') return skeletonHTML(4)
 
   switch (tab) {
 
     case 'summary': {
       const s = cache?.summary
       if (!s) return skeletonHTML(3)
+      if (typeof s === 'object' && s.loading) return skeletonHTML(3)
       if (s.error) return renderTabError('Summary analysis failed.')
       const { local, npm } = parseDeps(content)
       return `
@@ -593,11 +734,24 @@ function renderTabBody(tab, content, cache) {
       if (!content) return skeletonHTML(8)
       const lines = content.split('\n')
       const ext = getExt(selectedPath.split('/').pop())
+      const isMarkdownFile = new Set(['md', 'markdown', 'mdx']).has(ext)
       const shouldHighlight = HIGHLIGHT_EXTS.has(ext)
       const lineNumsHtml = lines.map((_, i) => `<span>${i + 1}</span>`).join('')
       const codeHtml = shouldHighlight
         ? lines.map(l => highlightLine(l)).join('\n')
         : escapeHtml(content)
+
+      if (isMarkdownFile) {
+        return `
+        <div class="code-header">
+          <span class="code-filename"><i class="ti ti-markdown"></i> ${escapeHtml(selectedPath.split('/').pop())}</span>
+          <div class="code-actions">
+            <span class="code-line-count">${lines.length} lines</span>
+            <button class="copy-btn" id="copy-code-btn"><i class="ti ti-copy"></i> Copy</button>
+          </div>
+        </div>
+        <div class="markdown-panel">${renderMarkdown(content)}</div>`
+      }
 
       return `
         <div class="code-header">
@@ -616,17 +770,19 @@ function renderTabBody(tab, content, cache) {
     case 'explain': {
       const e = cache?.explain
       if (!e) return skeletonHTML(6)
+      if (typeof e === 'object' && e.loading) return skeletonHTML(6)
       if (typeof e === 'object' && e.error) return renderTabError(e.error)
       return `
         <div class="section">
           <div class="section-label"><i class="ti ti-book-2"></i> Line-by-line explanation</div>
-          <div class="prose-card">${escapeHtml(e).replace(/\n/g, '<br>')}</div>
+          <div class="prose-card markdown-panel">${renderMarkdown(e)}</div>
         </div>`
     }
 
     case 'graph': {
       const g = cache?.graph
       if (!g) return skeletonHTML(4)
+      if (typeof g === 'object' && g.loading) return skeletonHTML(4)
       if (typeof g === 'object' && g.error) return renderTabError(g.error)
       const { local, npm } = parseDeps(content)
       const currentFile = selectedPath.split('/').pop()
@@ -641,7 +797,7 @@ function renderTabBody(tab, content, cache) {
         </div>
         <div class="section">
           <div class="section-label"><i class="ti ti-sparkles"></i> AI analysis</div>
-          <div class="prose-card">${escapeHtml(g).replace(/\n/g,'<br>')}</div>
+          <div class="prose-card markdown-panel">${renderMarkdown(g)}</div>
         </div>`
     }
 
@@ -649,6 +805,7 @@ function renderTabBody(tab, content, cache) {
       const defs = parseDefinitions(content)
       const aiDefs = cache?.definitions
       const aiDefsIsError = typeof aiDefs === 'object' && aiDefs !== null && aiDefs.error
+      const aiDefsIsLoading = typeof aiDefs === 'object' && aiDefs !== null && aiDefs.loading
       return `
         <div class="section">
           <div class="section-label"><i class="ti ti-list-details"></i> Symbols (${defs.length})</div>
@@ -659,21 +816,22 @@ function renderTabBody(tab, content, cache) {
             </li>`).join('')}</ul>`
           : '<p style="color:var(--muted);font-size:12px">No exported symbols detected.</p>'}
         </div>
-        ${!aiDefs ? skeletonHTML(2) : aiDefsIsError ? renderTabError(aiDefs.error) : `
+        ${!aiDefs || aiDefsIsLoading ? skeletonHTML(2) : aiDefsIsError ? renderTabError(aiDefs.error) : `
         <div class="section">
           <div class="section-label"><i class="ti ti-sparkles"></i> AI definitions</div>
-          <div class="prose-card">${escapeHtml(aiDefs).replace(/\n/g,'<br>')}</div>
+          <div class="prose-card markdown-panel">${renderMarkdown(aiDefs)}</div>
         </div>`}`
     }
 
     case 'onboarding': {
       const o = cache?.onboarding
       if (!o) return skeletonHTML(5)
+      if (typeof o === 'object' && o.loading) return skeletonHTML(5)
       if (typeof o === 'object' && o.error) return renderTabError(o.error)
       return `
         <div class="section">
           <div class="section-label"><i class="ti ti-map"></i> Developer onboarding guide</div>
-          <div class="prose-card">${escapeHtml(o).replace(/\n/g,'<br>')}</div>
+          <div class="prose-card markdown-panel">${renderMarkdown(o)}</div>
         </div>`
     }
 
@@ -695,7 +853,7 @@ function renderTabError(message) {
 // ── Open in web app ───────────────────────────────────────────────────────────
 
 function openInWebApp() {
-  let url = `http://localhost:5173/?repoUrl=${encodeURIComponent(repoUrl)}`
+  let url = `https://ashwinasthana.github.io/RepoLens/?repoUrl=${encodeURIComponent(repoUrl)}`
   if (selectedPath) {
     url += `&file=${encodeURIComponent(selectedPath)}`
   }
