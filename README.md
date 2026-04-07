@@ -122,31 +122,3 @@ This project is open source and available under the [MIT License](LICENSE).
   <strong>Built for the modern developer.</strong><br/>
   <sub>© 2026 RepoLens Hub</sub>
 </p>
-
-Contributions are welcome! Here's how to get started:
-
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feat/my-feature`
-3. **Commit** your changes: `git commit -m "feat: add my feature"`
-4. **Push** to the branch: `git push origin feat/my-feature`
-5. **Open** a Pull Request
-
-### Project Conventions
-
-- **CSS Modules** for component styles (`.module.css`)
-- **Satoshi** font for headings, **Inter** for body text
-- **GitHub dark theme** color palette (`--bg: #0d1117`, `--accent: #58a6ff`)
-- **Tabler Icons** (React) for all iconography
-
----
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
----
-
-<p align="center">
-  <strong>Built with ☕ and curiosity</strong><br/>
-  <sub>If you find RepoLens useful, consider giving it a ⭐</sub>
-</p>
