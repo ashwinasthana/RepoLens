@@ -8,7 +8,7 @@ import {
   IconAlertTriangle, IconListCheck, IconTarget,
   IconSchool, IconTools, IconRoute, IconBrain,
   IconDownload, IconBraces, IconAlertCircle,
-  IconRefresh, IconExternalLink,
+  IconRefresh, IconExternalLink, IconFlame,
 } from '@tabler/icons-react'
 import WelcomeScreen from './WelcomeScreen'
 import styles from './MainPanel.module.css'
@@ -143,6 +143,7 @@ const TABS = [
   { id: 'code',        icon: IconBraces,     label: 'Code' },
   { id: 'graph',       icon: IconChartDots3, label: 'Graph' },
   { id: 'definitions', icon: IconBook,       label: 'Definitions' },
+  { id: 'roast',       icon: IconFlame,      label: 'Roast' },
   { id: 'onboarding',  icon: IconRocket,     label: 'Onboarding' },
 ]
 
@@ -158,6 +159,7 @@ function generateReport(file, content, analysis) {
   const s = analysis?.summary
   const g = analysis?.graph
   const d = analysis?.definitions
+  const r = analysis?.roast
   const o = analysis?.onboarding
 
   let md = `# RepoLens Analysis: ${filename}\n\n`
@@ -194,6 +196,18 @@ function generateReport(file, content, analysis) {
       if (def.returns) md += `- **Returns:** \`${def.returns}\`\n`
       md += '\n'
     })
+  }
+
+  if (r?.roast) md += `## Roast\n${r.roast}\n\n`
+  if (r?.highlights?.length) {
+    md += `### Roast Highlights\n`
+    r.highlights.forEach(item => md += `- ${item}\n`)
+    md += '\n'
+  }
+  if (r?.fixes?.length) {
+    md += `### Suggested Fixes\n`
+    r.fixes.forEach(item => md += `- ${item}\n`)
+    md += '\n'
   }
 
   if (o?.whatItSolves) md += `## What It Solves\n${o.whatItSolves}\n\n`
@@ -669,6 +683,57 @@ function OnboardingTab({ file, analysis }) {
   )
 }
 
+// ── ROAST TAB ───────────────────────────────────────────────────────────────
+
+function RoastTab({ analysis }) {
+  const data = analysis?.roast
+  const isLoading = !data || data?.loading
+  const hasError = data?.error
+
+  if (isLoading) return <div className={styles.tabContent}><Skeleton rows={6} /></div>
+
+  if (hasError) return (
+    <div className={styles.tabContent}>
+      <TabError message="Roast failed. The AI might be rate-limited." />
+    </div>
+  )
+
+  const roastText = typeof data === 'string' ? data : data?.roast
+  const rating = typeof data === 'object' ? data?.rating : ''
+  const highlights = Array.isArray(data?.highlights) ? data.highlights : []
+  const fixes = Array.isArray(data?.fixes) ? data.fixes : []
+
+  return (
+    <div className={styles.tabContent}>
+      <section className={styles.section}>
+        <SectionLabel icon={IconFlame}>Repo roast</SectionLabel>
+        {rating && <div className={styles.roastMeter}>Heat: {rating}</div>}
+        <div className={styles.proseCard}>
+          <p className={styles.proseText}>{roastText || 'No roast available.'}</p>
+        </div>
+      </section>
+
+      {highlights.length > 0 && (
+        <section className={styles.section}>
+          <SectionLabel icon={IconAlertTriangle}>Savage callouts</SectionLabel>
+          <ul className={styles.roastList}>
+            {highlights.map((item, idx) => <li key={idx}>{item}</li>)}
+          </ul>
+        </section>
+      )}
+
+      {fixes.length > 0 && (
+        <section className={styles.section}>
+          <SectionLabel icon={IconTools}>How to clap back</SectionLabel>
+          <ul className={styles.roastList}>
+            {fixes.map((item, idx) => <li key={idx}>{item}</li>)}
+          </ul>
+        </section>
+      )}
+    </div>
+  )
+}
+
 // ── CODE TAB ─────────────────────────────────────────────────────────────────
 
 function CodeTab({ file, content }) {
@@ -828,6 +893,7 @@ export default function MainPanel({ selectedFile, fileContent, analysis, hasRepo
           {activeTab === 'code' && <CodeTab file={selectedFile} content={fileContent} />}
           {activeTab === 'graph' && <GraphTab file={selectedFile} content={fileContent} analysis={analysis} />}
           {activeTab === 'definitions' && <DefinitionsTab file={selectedFile} content={fileContent} analysis={analysis} />}
+          {activeTab === 'roast' && <RoastTab analysis={analysis} />}
           {activeTab === 'onboarding' && <OnboardingTab file={selectedFile} analysis={analysis} />}
         </div>
       </div>

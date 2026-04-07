@@ -5,7 +5,7 @@ import MainPanel from './components/MainPanel'
 import StatusBar from './components/StatusBar'
 import ChatWidget from './components/ChatWidget'
 import { parseGithubUrl, fetchRepoInfo, fetchFileTree, fetchFileContent } from './services/github'
-import { analyzeFile, analyzeGraph, analyzeDefinitions, analyzeOnboarding, getGroqApiKey } from './services/ai'
+import { analyzeFile, analyzeGraph, analyzeDefinitions, analyzeOnboarding, analyzeRoast, getGroqApiKey } from './services/ai'
 import ApiKeyModal from './components/ApiKeyModal'
 import styles from './App.module.css'
 
@@ -59,6 +59,7 @@ export default function App() {
       if (key === 'graph') setCached(node.path, 'graph', { imports: [], error: e.message })
       if (key === 'definitions') setCached(node.path, 'definitions', { definitions: [], error: e.message })
       if (key === 'onboarding') setCached(node.path, 'onboarding', { whatItSolves: '', error: e.message })
+      if (key === 'roast') setCached(node.path, 'roast', { roast: '', rating: 'mild', error: e.message })
     }
   }
 
@@ -75,6 +76,9 @@ export default function App() {
     if (!cached.onboarding) {
       setCached(node.path, 'onboarding', { loading: true })
     }
+    if (!cached.roast) {
+      setCached(node.path, 'roast', { loading: true })
+    }
 
     // Fire-and-forget sequential pipeline to avoid TPM bursts.
     ;(async () => {
@@ -89,6 +93,9 @@ export default function App() {
       }
       if (!cached.onboarding) {
         await runAnalysisStep(node, content, 'onboarding', analyzeOnboarding, 'Onboarding')
+      }
+      if (!cached.roast) {
+        await runAnalysisStep(node, content, 'roast', analyzeRoast, 'Roast')
       }
     })()
   }

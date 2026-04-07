@@ -249,7 +249,44 @@ Respond in JSON:
   return parseJson(text, { whatItSolves: '', prerequisites: [], keyConcepts: [], howToModify: [], pitfalls: [], readingOrder: [] })
 }
 
-// ── 6. Ask AI Chat ────────────────────────────────────────────────────────────
+// ── 6. Repo Roast ────────────────────────────────────────────────────────────
+
+export async function analyzeRoast(filename, content, repoContext = '') {
+  const text = await groqChat([
+    {
+      role: 'system',
+      content: 'You are a witty senior engineer. Roast constructively: funny but never abusive. Always respond with valid JSON only, no markdown fences.'
+    },
+    {
+      role: 'user',
+      content: `Create a playful roast for this repository file and context.
+
+Repository context: ${repoContext}
+Filename: ${filename}
+
+File content:
+${content.slice(0, 1200)}
+
+Respond in JSON:
+{
+  "roast": "short playful roast paragraph",
+  "rating": "mild|medium|spicy",
+  "highlights": ["funny but specific callout", "another callout"],
+  "fixes": ["practical fix suggestion", "another fix suggestion"]
+}`
+    },
+  ], 420)
+
+  const parsed = parseJson(text, { roast: '', rating: 'mild', highlights: [], fixes: [] })
+  return {
+    roast: parsed.roast || parsed.summary || '',
+    rating: parsed.rating || 'mild',
+    highlights: Array.isArray(parsed.highlights) ? parsed.highlights : [],
+    fixes: Array.isArray(parsed.fixes) ? parsed.fixes : [],
+  }
+}
+
+// ── 7. Ask AI Chat ────────────────────────────────────────────────────────────
 
 export async function askRepoQuestion(question, context) {
   return await groqChat([

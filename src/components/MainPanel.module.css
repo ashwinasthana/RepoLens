@@ -216,6 +216,28 @@
 
 .muted { font-size: 13px; color: var(--text-muted); }
 
+.roastMeter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #ff7b72;
+  margin-bottom: 8px;
+}
+
+.roastList {
+  margin: 0;
+  padding-left: 18px;
+  color: #c9d1d9;
+  font-size: 13px;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* ── Inline error ── */
 .inlineError {
   display: flex;
