@@ -6,8 +6,6 @@ import {
   IconTerminal2, IconShieldCheck,
 } from '@tabler/icons-react'
 import styles from './WelcomeScreen.module.css'
-import heroDashboard from '../../assets/hero-dashboard.png'
-import integrationsPreview from '../../assets/integrations-preview.png'
 
 const FEATURES = [
   { icon: IconSparkles,     title: 'AI Summary',        desc: '4 parallel AI analyses per file — summary, graph, definitions, onboarding', color: '#58a6ff' },
@@ -87,35 +85,22 @@ export default function WelcomeScreen() {
         </div>
 
         <h1 className={styles.title}>
-          <span className={styles.gradientText}>The best way to understand</span>
-          <br />
-          Any GitHub Repository.
+          <span className={styles.gradientText}>RepoLens</span>
         </h1>
 
+        <p className={styles.tagline}>AI-Powered Repository Intelligence</p>
+
         <p className={styles.subtitle}>
-          AI-powered repository intelligence that maps architecture, logic, and complexity in seconds.
+          {typedText}
+          <span className={styles.cursor}>|</span>
         </p>
 
-        <div className={styles.ctaWrapper}>
-          <div className={styles.cta}>
-            <IconArrowUp size={16} stroke={2.5} className={styles.ctaArrow} />
-            <span>Paste a GitHub URL to analyze</span>
-          </div>
-        </div>
-
-        {/* Hero Dashboard Preview */}
-        <div className={styles.heroMockup}>
-          <div className={styles.mockupTitle}><IconSearch size={18} /> Deep-Dive Analysis</div>
-          <img src={heroDashboard} alt="RepoLens Dashboard Preview" className={styles.mockupImg} />
-          <div className={styles.mockupGlow} />
+        <div className={styles.cta}>
+          <IconArrowUp size={16} stroke={2.5} className={styles.ctaArrow} />
+          <span>Paste a GitHub URL above to get started</span>
         </div>
 
         {/* Feature grid */}
-        <div className={styles.sectionHeading}>
-          <div className={styles.accentBar} />
-          <h2 className={styles.sectionTitle}>Everything you need to ship faster</h2>
-        </div>
-
         <div className={styles.features}>
           {FEATURES.map((f, i) => {
             const Icon = f.icon
@@ -131,22 +116,6 @@ export default function WelcomeScreen() {
               </div>
             )
           })}
-        </div>
-
-        {/* Integrations Section */}
-        <div className={styles.integrationsPanel}>
-          <div className={styles.integrationsInfo}>
-            <div className={styles.accentBar} />
-            <h2 className={styles.sectionTitle}>Seamless AI Integration</h2>
-            <p className={styles.integrationsDesc}>
-              Leverage LLaMA 3.3 and Groq's high-speed inference to process codebases without the wait.
-              Directly integrates with the GitHub API for real-time repo fetching.
-            </p>
-          </div>
-          <div className={styles.integrationsMockup}>
-            <img src={integrationsPreview} alt="AI Integrations Visual" className={styles.integrationsImg} />
-            <div className={styles.mockupGlow} />
-          </div>
         </div>
 
         {/* Tech Stack bar */}
