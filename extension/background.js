@@ -164,18 +164,67 @@ function parseAiJson(text) {
   catch { return { ...AI_FALLBACK, summary: text.trim() } }
 }
 
-async function analyzeFile(filename, content, repoContext, groqApiKey) {
-  if (!groqApiKey) throw new Error('Groq API key not configured — run chrome.storage.sync.set({groqApiKey:"..."})')
-  const data = await groqChatCompletion(groqApiKey, {
-    model: GROQ_MODEL,
-    messages: [
-      { role: 'system', content: 'You are a code analyst. Always respond with valid JSON only, no markdown fences.' },
-      { role: 'user',   content: buildPrompt(filename, content, repoContext) },
-    ],
-    temperature: 0.2,
-    max_tokens: 350,
-  })
-  return parseAiJson(data.choices[0].message.content)
+async function analyzeFile(filename, content) {
+  // 1. Try Groq FIRST (rich responses, always works)
+  try {
+    const { groqApiKey } = await chrome.storage.sync.get('groqApiKey');
+    if (groqApiKey) {
+      const response = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + groqApiKey,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "llama3-8b-8192",
+            messages: [{
+              role: "user",
+              content: "Explain this code in 2 sentences: " + content.slice(0, 1000)
+            }],
+            max_tokens: 200
+          })
+        }
+      );
+      const data = await response.json();
+      if (data.choices?.[0]?.message?.content) {
+        console.log("✅ Using Groq (Primary)");
+        return { summary: data.choices[0].message.content };
+      }
+    }
+  } catch (err) {
+    console.log("Groq failed, falling back to HF:", err);
+  }
+
+  // 2. Fall back to HF model if Groq fails
+  try {
+    const { hfToken } = await chrome.storage.sync.get('hfToken');
+    if (hfToken) {
+      const response = await fetch(
+        "https://api-inference.huggingface.co/models/ashwinasthana/repolens-model",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + hfToken,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            inputs: "explain code: " + content.slice(0, 500)
+          })
+        }
+      );
+      const result = await response.json();
+      if (Array.isArray(result) && result[0]?.generated_text) {
+        console.log("✅ Using RepoLens custom model (Fallback)");
+        return { summary: result[0].generated_text };
+      }
+    }
+  } catch (err) {
+    console.log("HF fallback failed:", err);
+  }
+
+  return { summary: "Analysis unavailable." };
 }
 
 async function groqAsk(groqApiKey, filename, content, instruction) {
