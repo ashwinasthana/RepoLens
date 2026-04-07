@@ -1,4 +1,4 @@
-const GROQ_BASE  = 'https://api.groq.com/openai/v1'
+const GROQ_BASE = 'https://api.groq.com/openai/v1'
 const GROQ_MODEL = 'llama-3.1-8b-instant'
 const GROQ_MAX_RETRIES = 4
 
@@ -106,7 +106,8 @@ function parseJson(text, fallback = {}) {
 export async function analyzeFile(filename, content, repoContext = '') {
   const text = await groqChat([
     { role: 'system', content: 'You are a code analyst. Always respond with valid JSON only, no markdown fences.' },
-    { role: 'user',   content: `You are a code explanation assistant. Analyze this file from a GitHub repository.
+    {
+      role: 'user', content: `You are a code explanation assistant. Analyze this file from a GitHub repository.
 
 Repository context: ${repoContext}
 Filename: ${filename}
@@ -131,7 +132,7 @@ Respond in JSON format:
 export async function summarizeRepo(repoInfo) {
   const text = await groqChat([
     { role: 'system', content: 'You are a code analyst. Be concise.' },
-    { role: 'user',   content: `Summarize this GitHub repo in 3-4 sentences.\nName: ${repoInfo.full_name}\nDescription: ${repoInfo.description}\nLanguage: ${repoInfo.language}\nStars: ${repoInfo.stargazers_count}` },
+    { role: 'user', content: `Summarize this GitHub repo in 3-4 sentences.\nName: ${repoInfo.full_name}\nDescription: ${repoInfo.description}\nLanguage: ${repoInfo.language}\nStars: ${repoInfo.stargazers_count}` },
   ])
   return text
 }
@@ -141,7 +142,8 @@ export async function summarizeRepo(repoInfo) {
 export async function analyzeGraph(filename, content, repoContext = '') {
   const text = await groqChat([
     { role: 'system', content: 'You are an expert code analyst. Always respond with valid JSON only, no markdown fences.' },
-    { role: 'user',   content: `Analyze the dependency relationships in this file.
+    {
+      role: 'user', content: `Analyze the dependency relationships in this file.
 
 Repository context: ${repoContext}
 Filename: ${filename}
@@ -167,7 +169,8 @@ Respond in JSON:
 export async function analyzeDefinitions(filename, content, repoContext = '') {
   const text = await groqChat([
     { role: 'system', content: 'You are an expert code analyst. Always respond with valid JSON only, no markdown fences.' },
-    { role: 'user',   content: `List and analyze every exported function, class, constant, type, and interface in this file.
+    {
+      role: 'user', content: `List and analyze every exported function, class, constant, type, and interface in this file.
 
 Repository context: ${repoContext}
 Filename: ${filename}
@@ -199,7 +202,8 @@ Respond in JSON:
 export async function analyzeOnboarding(filename, content, repoContext = '') {
   const text = await groqChat([
     { role: 'system', content: 'You are an expert code mentor. Always respond with valid JSON only, no markdown fences.' },
-    { role: 'user',   content: `Write a developer onboarding guide for this file. A new developer is reading this for the first time.
+    {
+      role: 'user', content: `Write a developer onboarding guide for this file. A new developer is reading this for the first time.
 
 Repository context: ${repoContext}
 Filename: ${filename}
@@ -231,6 +235,6 @@ Respond in JSON:
 export async function askRepoQuestion(question, context) {
   return await groqChat([
     { role: 'system', content: 'You are an expert developer assistant. Answer the user\'s question about their codebase using the provided context. Be practical, concise, and helpful.' },
-    { role: 'user',   content: `Question: ${question}\n\nContext:\n${context}` },
+    { role: 'user', content: `Question: ${question}\n\nContext:\n${context}` },
   ], 420)
 }

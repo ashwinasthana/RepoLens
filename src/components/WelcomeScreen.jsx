@@ -8,17 +8,17 @@ import styles from './WelcomeScreen.module.css'
 import dashboardImg from '../assets/dashboard-preview.png'
 
 const FEATURES = [
-  { icon: IconSparkles,     title: 'AI Synthesis',      desc: '4-way parallel AI analysis per file via LLaMA 3.3', color: '#58a6ff' },
-  { icon: IconChartDots3,   title: 'Visual Graphs',     desc: 'Automated dependency mapping and role analysis', color: '#bc8cff' },
-  { icon: IconBook,         title: 'Intelligent Symbol Parsing', desc: 'Symbol definitions with behavioral context', color: '#f778ba' },
-  { icon: IconRocket,       title: 'Onboarding Engine',  desc: 'Instant guides for new codebase contributors', color: '#ffa657' },
+  { icon: IconSparkles, title: 'AI Synthesis', desc: '4-way parallel AI analysis per file via RepoLens-7B v1', color: '#58a6ff' },
+  { icon: IconChartDots3, title: 'Visual Graphs', desc: 'Automated dependency mapping and role analysis', color: '#bc8cff' },
+  { icon: IconBook, title: 'Intelligent Symbol Parsing', desc: 'Symbol definitions with behavioral context', color: '#f778ba' },
+  { icon: IconRocket, title: 'Onboarding Engine', desc: 'Instant guides for new codebase contributors', color: '#ffa657' },
 ]
 
 const TECH_STACK = [
-  { icon: IconBrain,         label: 'Groq Cloud' },
-  { icon: IconBolt,          label: 'LLaMA 3.3' },
-  { icon: IconTerminal2,     label: 'React + Vite' },
-  { icon: IconShieldCheck,   label: 'GitHub API' },
+  { icon: IconBrain, label: 'Private Cluster' },
+  { icon: IconBolt, label: 'Fine-tuned LLM' },
+  { icon: IconTerminal2, label: 'React + Vite' },
+  { icon: IconShieldCheck, label: 'GitHub API' },
 ]
 
 export default function WelcomeScreen() {
@@ -39,7 +39,7 @@ export default function WelcomeScreen() {
         <div className={styles.contentCol}>
           <div className={styles.badgeRow}>
             <div className={styles.pillBadge}>
-              <IconSparkles size={14} /> <span>Powered by Groq</span>
+              <IconSparkles size={14} /> <span>Custom Fine-tuned Model</span>
             </div>
           </div>
 
@@ -92,7 +92,7 @@ export default function WelcomeScreen() {
             <div className={styles.previewGlow} />
             <img src={dashboardImg} alt="RepoLens Preview" className={styles.previewImg} />
             <div className={styles.browserBar}>
-              <div className={styles.dots}><span/><span/><span/></div>
+              <div className={styles.dots}><span /><span /><span /></div>
               <div className={styles.address}>ashwinasthana.github.io/RepoLens/</div>
             </div>
             {/* Floating UI Elements */}

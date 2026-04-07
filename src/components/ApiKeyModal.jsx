@@ -48,9 +48,9 @@ export default function ApiKeyModal({ onComplete }) {
           </div>
 
           <div className={styles.actions}>
-            <a 
-              href="https://console.groq.com/keys" 
-              target="_blank" 
+            <a
+              href="https://console.groq.com/keys"
+              target="_blank"
               rel="noopener noreferrer"
               className={styles.helperLink}
             >
