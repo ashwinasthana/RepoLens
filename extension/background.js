@@ -299,7 +299,8 @@ async function handleMessage(msg) {
       `List and explain every exported function, class, constant, and type in this file. For each one: name, what it does, parameters/return value if applicable. Format clearly with each definition on its own line.`)
     case 'ONBOARD_FILE':       return groqAsk(groqApiKey, msg.filename, msg.content,
       `Write an onboarding guide for a new developer reading this file for the first time. Cover: 1) what problem this file solves, 2) key concepts they need to understand, 3) how to modify it safely, 4) common pitfalls. Be practical and specific.`)
-    case 'ROAST_FILE':         return groqAsk(groqApiKey, msg.filename, msg.content,
+    case 'ROAST_FILE':
+    case 'ROASTFILE':          return groqAsk(groqApiKey, msg.filename, msg.content,
       `Create a playful but constructive roast of this repository code. Keep it funny, specific, and useful. Include: 1) short roast paragraph, 2) top issues, 3) practical fixes. Use markdown headings and bullet points.`)
     case 'CHAT_REPO':          return groqAsk(groqApiKey, msg.question, msg.context,
       `Answer the user's question about the repository using the provided context. Be practical, concise, and helpful.`)

@@ -196,6 +196,36 @@ function send(type, payload) {
             return finishResolve(retryRes)
           })
         }
+
+        // Roast fallback for older background workers that don't yet support ROAST_FILE.
+        if (type === 'ROAST_FILE' && /Unknown message type:\s*ROAST_FILE/i.test(res.error)) {
+          const roastQuestion = 'Roast this code in a playful but constructive way. Include: a short roast paragraph, top issues, and practical fixes.'
+          const roastContext = [
+            `Repository context: ${payload?.repoContext || ''}`,
+            `Filename: ${payload?.filename || ''}`,
+            '',
+            'File content:',
+            String(payload?.content || '').slice(0, 1500),
+          ].join('\n')
+
+          return chrome.runtime.sendMessage({ type: 'CHAT_REPO', question: roastQuestion, context: roastContext }, retryRes => {
+            const retryRuntimeErr = chrome.runtime.lastError?.message || ''
+            if (retryRuntimeErr) return finishReject(new Error(retryRuntimeErr))
+
+            if (retryRes?.error && /Unknown message type:\s*CHAT_REPO/i.test(retryRes.error)) {
+              return chrome.runtime.sendMessage({ type: 'CHAT', question: roastQuestion, context: roastContext }, legacyRes => {
+                const legacyRuntimeErr = chrome.runtime.lastError?.message || ''
+                if (legacyRuntimeErr) return finishReject(new Error(legacyRuntimeErr))
+                if (legacyRes?.error) return finishReject(new Error(legacyRes.error))
+                return finishResolve(legacyRes)
+              })
+            }
+
+            if (retryRes?.error) return finishReject(new Error(retryRes.error))
+            return finishResolve(retryRes)
+          })
+        }
+
         return finishReject(new Error(res.error))
       }
 
