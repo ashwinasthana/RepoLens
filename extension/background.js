@@ -51,7 +51,7 @@ async function fetchFileContent(owner, repo, path, token) {
 
 // ── Groq AI ───────────────────────────────────────────────────────────────────
 
-const GROQ_MODEL  = 'llama-3.3-70b-versatile'
+const GROQ_MODEL  = 'llama-3.1-8b-instant'
 const AI_FALLBACK = { summary: '', purpose: '', keyExports: [], complexity: 'low', suggestedNextFiles: [] }
 
 function buildPrompt(filename, content, repoContext) {
@@ -121,7 +121,12 @@ async function groqAsk(groqApiKey, filename, content, instruction) {
 
 function getCredentials() {
   return new Promise(resolve =>
-    chrome.storage.sync.get(['githubToken', 'groqApiKey'], resolve)
+    chrome.storage.sync.get(['githubToken', 'groqApiKey'], res => {
+      resolve({
+        githubToken: res.githubToken || 'github_pat_YOUR_TOKEN_HERE',
+        groqApiKey: res.groqApiKey || 'gsk_YOUR_TOKEN_HERE'
+      })
+    })
   )
 }
 
@@ -151,6 +156,8 @@ async function handleMessage(msg) {
       `List and explain every exported function, class, constant, and type in this file. For each one: name, what it does, parameters/return value if applicable. Format clearly with each definition on its own line.`)
     case 'ONBOARD_FILE':       return groqAsk(groqApiKey, msg.filename, msg.content,
       `Write an onboarding guide for a new developer reading this file for the first time. Cover: 1) what problem this file solves, 2) key concepts they need to understand, 3) how to modify it safely, 4) common pitfalls. Be practical and specific.`)
+    case 'CHAT_REPO':          return groqAsk(groqApiKey, msg.question, msg.context,
+      `Answer the user's question about the repository using the provided context. Be practical, concise, and helpful.`)
     default: throw new Error(`Unknown message type: ${msg.type}`)
   }
 }

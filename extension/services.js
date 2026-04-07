@@ -52,7 +52,7 @@ async function fetchFileContent(owner, repo, path, token) {
 }
 
 const GROQ_BASE  = 'https://api.groq.com/openai/v1'
-const GROQ_MODEL = 'llama-3.3-70b-versatile'
+const GROQ_MODEL = 'llama-3.1-8b-instant'
 const AI_FALLBACK = { summary: '', purpose: '', keyExports: [], complexity: 'low', suggestedNextFiles: [] }
 
 function _buildPrompt(filename, content, repoContext) {
