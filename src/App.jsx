@@ -5,7 +5,8 @@ import MainPanel from './components/MainPanel'
 import StatusBar from './components/StatusBar'
 import ChatWidget from './components/ChatWidget'
 import { parseGithubUrl, fetchRepoInfo, fetchFileTree, fetchFileContent } from './services/github'
-import { analyzeFile, analyzeGraph, analyzeDefinitions, analyzeOnboarding } from './services/ai'
+import { analyzeFile, analyzeGraph, analyzeDefinitions, analyzeOnboarding, getGroqApiKey } from './services/ai'
+import ApiKeyModal from './components/ApiKeyModal'
 import styles from './App.module.css'
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
   const [fileContent,  setFileContent]  = useState('')
   const [error,        setError]        = useState('')
   const [repoContext,  setRepoContext]  = useState('')
+  const [hasApiKey,    setHasApiKey]    = useState(!!getGroqApiKey())
 
   // Per-file analysis results (cached by path)
   const [analysisCache, setAnalysisCache] = useState({})
@@ -187,6 +189,7 @@ export default function App() {
 
   return (
     <div className={styles.app}>
+      {!hasApiKey && <ApiKeyModal onComplete={() => setHasApiKey(true)} />}
       <Navbar
         onAnalyze={handleAnalyze}
         loading={isLoading}

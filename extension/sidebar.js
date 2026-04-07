@@ -311,25 +311,78 @@ const $treeSearchClear = document.getElementById('tree-search-clear')
 const params  = new URLSearchParams(location.search)
 const repoUrl = params.get('repoUrl') || ''
 
-chrome.runtime.sendMessage({ type: 'PING' }, () => { void chrome.runtime.lastError })
+window.onerror = (m, s, l, c, e) => { console.error('[RepoLens Sidebar] Error:', m, e); addToast(m); }
+
+chrome.runtime.sendMessage({ type: 'PING' }, () => {
+  const err = chrome.runtime.lastError?.message
+  if (err) console.warn('[RepoLens Sidebar] Background connection warning:', err)
+  else console.log('[RepoLens Sidebar] Background connection OK')
+})
 
 if (repoUrl) {
   try {
     const parsed = parseGithubUrl(repoUrl)
     owner = parsed.owner; repo = parsed.repo
     if ($repoName) $repoName.textContent = `${owner}/${repo}`
-  } catch (err) { showError('Could not parse repo URL: ' + err.message) }
-} else { showError('No repoUrl parameter found') }
+    console.log('[RepoLens Sidebar] Identifying repo:', owner, repo)
+  } catch (err) {
+    showError('Could not parse repo URL: ' + err.message)
+    console.error('[RepoLens Sidebar] Parse fail:', err)
+  }
+} else {
+  showError('No repoUrl parameter found')
+  console.warn('[RepoLens Sidebar] No repoUrl param in window.location.search')
+}
 
 document.getElementById('close-btn').addEventListener('click', () => {
+  console.log('[RepoLens Sidebar] Close clicked')
   window.parent.postMessage('REPOLENS_CLOSE', '*')
 })
 
-document.getElementById('open-web-btn').addEventListener('click', openInWebApp)
-$analyzeBtn.addEventListener('click', handleAnalyze)
+// ── Settings ──────────────────────────────────────────────────────────────────
+const $settingsBtn = document.getElementById('settings-btn')
+const $settingsOverlay = document.getElementById('settings-overlay')
+const $settingsClose = document.getElementById('settings-close')
+const $groqInput = document.getElementById('groq-key-input')
+const $ghInput = document.getElementById('gh-token-input')
+const $saveSettingsBtn = document.getElementById('save-settings-btn')
 
-// ── File search ───────────────────────────────────────────────────────────────
+if ($settingsBtn) {
+  $settingsBtn.addEventListener('click', () => {
+    chrome.storage.sync.get(['groqApiKey', 'githubToken'], res => {
+      if ($groqInput) $groqInput.value = res.groqApiKey || ''
+      if ($ghInput) $ghInput.value = res.githubToken || ''
+      $settingsOverlay.style.display = 'flex'
+    })
+  })
 
+  $settingsClose.addEventListener('click', () => {
+    $settingsOverlay.style.display = 'none'
+  })
+
+  $saveSettingsBtn.addEventListener('click', () => {
+    const groqKey = $groqInput.value.trim()
+    const ghToken = $ghInput.value.trim()
+    chrome.storage.sync.set({ groqApiKey: groqKey, githubToken: ghToken }, () => {
+      $settingsOverlay.style.display = 'none'
+      addToast('Settings saved!', 'success')
+      // Small delay to allow storage sync, then reload to ensure background sees it
+      setTimeout(() => location.reload(), 500)
+    })
+  })
+}
+
+document.getElementById('open-web-btn').addEventListener('click', () => {
+  console.log('[RepoLens Sidebar] Open web app clicked')
+  openInWebApp()
+})
+
+$analyzeBtn.addEventListener('click', () => {
+  console.log('[RepoLens Sidebar] Analyze clicked')
+  handleAnalyze();
+})
+
+// ... existing search logic ...
 if ($treeSearch) {
   $treeSearch.addEventListener('input', () => {
     const query = $treeSearch.value.trim().toLowerCase()
@@ -344,7 +397,6 @@ if ($treeSearch) {
       }
     }
 
-    // Open all parent folders when searching
     if (query) {
       document.querySelectorAll('.tree-children').forEach(c => c.classList.add('open'))
       document.querySelectorAll('.arrow').forEach(a => a.classList.add('open'))
@@ -450,7 +502,6 @@ async function handleAnalyze() {
     if ($statusText) $statusText.innerHTML =
       `${info.full_name} · ${info.language ?? '?'} · analyzed just now`
     
-    // Show chat FAB once repo is loaded
     if ($chatFab && $chatWidget.style.display === 'none') {
       $chatFab.style.display = 'flex'
     }
@@ -540,8 +591,6 @@ async function handleFileClick(node, rowEl) {
 async function fetchTabData(node, content) {
   const path = node.path
   tabCache[path] = tabCache[path] ?? {}
-
-  // Hackathon-safe default: prefetch only summary.
   await ensureTabData(node, content, 'summary')
 }
 
@@ -593,9 +642,8 @@ async function ensureTabData(node, content, tabKey, force = false) {
   return run
 }
 
-// ── Render shell with tabs ────────────────────────────────────────────────────
-
 function renderFileShell(node, content, cache) {
+  console.log('[RepoLens Sidebar] Rendering shell for:', node.path)
   if (!$detailPanel) return
   const ext  = getExt(node.name)
   const lang = EXT_LANG[ext] ?? ext.toUpperCase()
@@ -691,12 +739,7 @@ function bindTabActions() {
 
 // ── Tab body renderer ─────────────────────────────────────────────────────────
 
-function renderTabError(msg) {
-  return `<div class="error-state">
-    <i class="ti ti-alert-triangle" style="font-size:24px; color:var(--danger)"></i>
-    <p>${escapeHtml(msg)}</p>
-  </div>`
-}
+
 
 function renderTabBody(tab, content, cache) {
   if ((content === null || content === undefined) && tab !== 'summary') return skeletonHTML(4)

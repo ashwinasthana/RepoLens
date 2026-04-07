@@ -24,6 +24,9 @@
       <span id="repo-name">—</span>
     </div>
     <div id="header-actions">
+      <button id="settings-btn" title="Settings">
+        <i class="ti ti-settings"></i>
+      </button>
       <button id="open-web-btn" title="Open in web app">
         <i class="ti ti-external-link"></i>
       </button>
@@ -108,6 +111,29 @@
       <input type="text" id="chat-input" placeholder="Ask a question..." autocomplete="off" />
       <button type="submit" id="chat-send"><i class="ti ti-send"></i></button>
     </form>
+  </div>
+
+  <!-- Settings Overlay -->
+  <div id="settings-overlay" style="display: none;">
+    <div id="settings-modal">
+      <div id="settings-header">
+        <div id="settings-title"><i class="ti ti-settings"></i> Settings</div>
+        <button id="settings-close"><i class="ti ti-x"></i></button>
+      </div>
+      <div id="settings-body">
+        <div class="settings-group">
+          <label>Groq API Key</label>
+          <input type="password" id="groq-key-input" placeholder="gsk_..." />
+          <p class="settings-hint">Used for AI analysis. <a href="https://console.groq.com/keys" target="_blank">Get key</a></p>
+        </div>
+        <div class="settings-group">
+          <label>GitHub Token (Optional)</label>
+          <input type="password" id="gh-token-input" placeholder="ghp_..." />
+          <p class="settings-hint">Higher rate limits for large repos. <a href="https://github.com/settings/tokens" target="_blank">Get token</a></p>
+        </div>
+        <button id="save-settings-btn">Save & Reload</button>
+      </div>
+    </div>
   </div>
 
 </div>

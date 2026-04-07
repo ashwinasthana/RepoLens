@@ -1,28 +1,96 @@
 const GROQ_BASE  = 'https://api.groq.com/openai/v1'
 const GROQ_MODEL = 'llama-3.1-8b-instant'
+const GROQ_MAX_RETRIES = 4
 
 const FALLBACK = { summary: '', purpose: '', keyExports: [], complexity: 'low', suggestedNextFiles: [] }
 
+let groqQueue = Promise.resolve()
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function enqueueGroq(task) {
+  const run = groqQueue.then(task, task)
+  groqQueue = run.catch(() => undefined)
+  return run
+}
+
+function parseRetryDelayMs(response, responseText) {
+  const retryAfter = response.headers.get('retry-after')
+  if (retryAfter) {
+    const asNumber = Number(retryAfter)
+    if (Number.isFinite(asNumber) && asNumber > 0) return Math.ceil(asNumber * 1000)
+
+    const asDate = Date.parse(retryAfter)
+    if (!Number.isNaN(asDate)) {
+      const diff = asDate - Date.now()
+      if (diff > 0) return diff
+    }
+  }
+
+  const waitMatch = /try again in\s*([\d.]+)\s*(ms|s)/i.exec(responseText || '')
+  if (waitMatch) {
+    const value = Number(waitMatch[1])
+    if (Number.isFinite(value) && value > 0) {
+      return waitMatch[2].toLowerCase() === 'ms' ? Math.ceil(value) : Math.ceil(value * 1000)
+    }
+  }
+
+  return 10000
+}
+
 // ── Shared fetch helper ───────────────────────────────────────────────────────
+export function getGroqApiKey() {
+  return localStorage.getItem('repolens_groq_api_key') || import.meta.env.VITE_GROQ_API_KEY || ''
+}
+
+export function saveGroqApiKey(key) {
+  if (key) localStorage.setItem('repolens_groq_api_key', key)
+  else localStorage.removeItem('repolens_groq_api_key')
+}
 
 async function groqChat(messages, maxTokens = 1024) {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY
+  const apiKey = getGroqApiKey()
   if (!apiKey) throw new Error('VITE_GROQ_API_KEY is not set')
 
-  const res = await fetch(`${GROQ_BASE}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ model: GROQ_MODEL, messages, temperature: 0.2, max_tokens: maxTokens }),
-  })
-  if (!res.ok) {
-    const err = await res.text().catch(() => res.statusText)
-    throw new Error(`Groq error ${res.status}: ${err}`)
+  let attempt = 0
+
+  while (attempt <= GROQ_MAX_RETRIES) {
+    const { res, text } = await enqueueGroq(async () => {
+      const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ model: GROQ_MODEL, messages, temperature: 0.2, max_tokens: maxTokens }),
+      })
+      const text = await res.text().catch(() => res.statusText)
+      return { res, text }
+    })
+
+    if (res.ok) {
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        throw new Error('Groq returned invalid JSON response')
+      }
+      return data.choices[0].message.content
+    }
+
+    if (res.status === 429 && attempt < GROQ_MAX_RETRIES) {
+      const waitMs = parseRetryDelayMs(res, text) + attempt * 800
+      await sleep(waitMs)
+      attempt += 1
+      continue
+    }
+
+    throw new Error(`Groq error ${res.status}: ${text}`)
   }
-  const data = await res.json()
-  return data.choices[0].message.content
+
+  throw new Error('Groq rate limit retries exhausted. Please retry in a few seconds.')
 }
 
 // ── JSON parser ───────────────────────────────────────────────────────────────
@@ -44,7 +112,7 @@ Repository context: ${repoContext}
 Filename: ${filename}
 
 File content:
-${content.slice(0, 3000)}
+${content.slice(0, 1000)}
 
 Respond in JSON format:
 {
@@ -54,7 +122,7 @@ Respond in JSON format:
   "complexity": "low|medium|high",
   "suggestedNextFiles": ["files a new developer should read next"]
 }` },
-  ])
+  ], 300)
   return parseJson(text, FALLBACK)
 }
 
@@ -79,7 +147,7 @@ Repository context: ${repoContext}
 Filename: ${filename}
 
 File content:
-${content.slice(0, 2000)}
+${content.slice(0, 900)}
 
 Respond in JSON:
 {
@@ -90,7 +158,7 @@ Respond in JSON:
   "architectureRole": "one sentence describing where this file sits in the architecture",
   "dataFlow": "one sentence describing how data flows through this file"
 }` },
-  ])
+  ], 360)
   return parseJson(text, { imports: [], likelyImportedBy: [], architectureRole: '', dataFlow: '' })
 }
 
@@ -105,7 +173,7 @@ Repository context: ${repoContext}
 Filename: ${filename}
 
 File content:
-${content.slice(0, 2000)}
+${content.slice(0, 900)}
 
 Respond in JSON:
 {
@@ -122,7 +190,7 @@ Respond in JSON:
   "patterns": ["design patterns used, e.g. singleton, factory, observer"],
   "totalComplexity": "low|medium|high"
 }` },
-  ], 2048)
+  ], 420)
   return parseJson(text, { definitions: [], patterns: [], totalComplexity: 'low' })
 }
 
@@ -137,7 +205,7 @@ Repository context: ${repoContext}
 Filename: ${filename}
 
 File content:
-${content.slice(0, 2000)}
+${content.slice(0, 900)}
 
 Respond in JSON:
 {
@@ -154,7 +222,7 @@ Respond in JSON:
   ],
   "readingOrder": ["suggested order of files to read to understand this part of the codebase"]
 }` },
-  ], 2048)
+  ], 480)
   return parseJson(text, { whatItSolves: '', prerequisites: [], keyConcepts: [], howToModify: [], pitfalls: [], readingOrder: [] })
 }
 
@@ -164,5 +232,5 @@ export async function askRepoQuestion(question, context) {
   return await groqChat([
     { role: 'system', content: 'You are an expert developer assistant. Answer the user\'s question about their codebase using the provided context. Be practical, concise, and helpful.' },
     { role: 'user',   content: `Question: ${question}\n\nContext:\n${context}` },
-  ], 1024)
+  ], 420)
 }
