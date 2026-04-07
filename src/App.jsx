@@ -98,6 +98,14 @@ export default function App() {
     const params = new URLSearchParams(window.location.search)
     const initRepo = params.get('repoUrl')
     const initFile = params.get('file')
+    const authKey  = params.get('auth')
+
+    if (authKey) {
+      import('./services/ai').then(({ saveGroqApiKey }) => {
+        saveGroqApiKey(authKey)
+        setHasApiKey(true)
+      })
+    }
 
     if (initRepo) {
       window.history.replaceState({}, '', window.location.pathname)

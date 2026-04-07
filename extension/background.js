@@ -53,6 +53,91 @@ async function fetchFileContent(owner, repo, path, token) {
 
 const GROQ_MODEL  = 'llama-3.1-8b-instant'
 const AI_FALLBACK = { summary: '', purpose: '', keyExports: [], complexity: 'low', suggestedNextFiles: [] }
+const GROQ_MAX_RETRIES = 3
+const GROQ_REQUEST_TIMEOUT_MS = 45000
+
+let groqQueue = Promise.resolve()
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function enqueueGroq(task) {
+  const run = groqQueue.then(task, task)
+  groqQueue = run.catch(() => undefined)
+  return run
+}
+
+function parseRetryDelayMs(response, responseText) {
+  const retryAfterHeader = Number(response.headers.get('retry-after'))
+  if (Number.isFinite(retryAfterHeader) && retryAfterHeader > 0) {
+    return Math.ceil(retryAfterHeader * 1000)
+  }
+
+  const match = /try again in\s*([\d.]+)s/i.exec(responseText || '')
+  if (match) {
+    const seconds = Number(match[1])
+    if (Number.isFinite(seconds) && seconds > 0) return Math.ceil(seconds * 1000)
+  }
+
+  return 12000
+}
+
+async function groqChatCompletion(groqApiKey, body) {
+  if (!groqApiKey) throw new Error('Groq API key not configured')
+
+  let attempt = 0
+  while (attempt <= GROQ_MAX_RETRIES) {
+    let responsePayload
+    try {
+      responsePayload = await enqueueGroq(async () => {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), GROQ_REQUEST_TIMEOUT_MS)
+        let res
+        try {
+          res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqApiKey}` },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          })
+        } finally {
+          clearTimeout(timeoutId)
+        }
+        const text = await res.text().catch(() => res.statusText)
+        return { res, text }
+      })
+    } catch (err) {
+      const isAbort = err?.name === 'AbortError'
+      if (isAbort && attempt < GROQ_MAX_RETRIES) {
+        attempt += 1
+        continue
+      }
+      if (isAbort) {
+        throw new Error('Groq request timed out. Please retry in a few seconds.')
+      }
+      throw err
+    }
+
+    const { res, text } = responsePayload
+
+    if (res.ok) {
+      try { return JSON.parse(text) }
+      catch { throw new Error('Groq response parsing failed') }
+    }
+
+    if (res.status === 429 && attempt < GROQ_MAX_RETRIES) {
+      const waitMs = parseRetryDelayMs(res, text) + attempt * 1200
+      await sleep(waitMs)
+      attempt += 1
+      continue
+    }
+
+    throw new Error(`Groq error ${res.status}: ${text}`)
+  }
+
+  throw new Error('Groq rate limit retries exhausted. Please try again in a moment.')
+}
 
 function buildPrompt(filename, content, repoContext) {
   return `You are a code explanation assistant. Analyze this file from a GitHub repository.
@@ -61,7 +146,7 @@ Repository context: ${repoContext}
 Filename: ${filename}
 
 File content:
-${content.slice(0, 3000)}
+${content.slice(0, 1200)}
 
 Respond in JSON format:
 {
@@ -81,39 +166,29 @@ function parseAiJson(text) {
 
 async function analyzeFile(filename, content, repoContext, groqApiKey) {
   if (!groqApiKey) throw new Error('Groq API key not configured — run chrome.storage.sync.set({groqApiKey:"..."})')
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqApiKey}` },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [
-        { role: 'system', content: 'You are a code analyst. Always respond with valid JSON only, no markdown fences.' },
-        { role: 'user',   content: buildPrompt(filename, content, repoContext) },
-      ],
-      temperature: 0.2, max_tokens: 1024,
-    }),
+  const data = await groqChatCompletion(groqApiKey, {
+    model: GROQ_MODEL,
+    messages: [
+      { role: 'system', content: 'You are a code analyst. Always respond with valid JSON only, no markdown fences.' },
+      { role: 'user',   content: buildPrompt(filename, content, repoContext) },
+    ],
+    temperature: 0.2,
+    max_tokens: 350,
   })
-  if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text().catch(() => res.statusText)}`)
-  const data = await res.json()
   return parseAiJson(data.choices[0].message.content)
 }
 
 async function groqAsk(groqApiKey, filename, content, instruction) {
   if (!groqApiKey) throw new Error('Groq API key not configured')
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqApiKey}` },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [
-        { role: 'system', content: 'You are an expert code analyst. Be thorough, specific, and practical.' },
-        { role: 'user',   content: `${instruction}\n\nFilename: ${filename}\n\nFile content:\n${content.slice(0, 4000)}` },
-      ],
-      temperature: 0.3, max_tokens: 2048,
-    }),
+  const data = await groqChatCompletion(groqApiKey, {
+    model: GROQ_MODEL,
+    messages: [
+      { role: 'system', content: 'You are an expert code analyst. Be thorough, specific, and practical.' },
+      { role: 'user',   content: `${instruction}\n\nFilename: ${filename}\n\nFile content:\n${content.slice(0, 1200)}` },
+    ],
+    temperature: 0.3,
+    max_tokens: 450,
   })
-  if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text().catch(() => res.statusText)}`)
-  const data = await res.json()
   return data.choices[0].message.content
 }
 
@@ -139,11 +214,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 })
 
 async function handleMessage(msg) {
+  if (!msg || typeof msg !== 'object') {
+    throw new Error('Invalid message payload')
+  }
+
   const creds      = await getCredentials()
   const token      = creds.githubToken || ''
   const groqApiKey = creds.groqApiKey  || ''
+  const rawType = typeof msg.type === 'string' ? msg.type : ''
+  const normalizedType = rawType.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '')
+  const type = normalizedType === 'CHAT' ? 'CHAT_REPO' : normalizedType
 
-  switch (msg.type) {
+  switch (type) {
     case 'FETCH_REPO_INFO':    return fetchRepoInfo(msg.owner, msg.repo, token)
     case 'FETCH_FILE_TREE':    return fetchFileTree(msg.owner, msg.repo, token)
     case 'FETCH_FILE_CONTENT': return fetchFileContent(msg.owner, msg.repo, msg.path, token)
@@ -158,6 +240,6 @@ async function handleMessage(msg) {
       `Write an onboarding guide for a new developer reading this file for the first time. Cover: 1) what problem this file solves, 2) key concepts they need to understand, 3) how to modify it safely, 4) common pitfalls. Be practical and specific.`)
     case 'CHAT_REPO':          return groqAsk(groqApiKey, msg.question, msg.context,
       `Answer the user's question about the repository using the provided context. Be practical, concise, and helpful.`)
-    default: throw new Error(`Unknown message type: ${msg.type}`)
+    default: throw new Error(`Unknown message type: ${rawType || '(missing)'}`)
   }
 }

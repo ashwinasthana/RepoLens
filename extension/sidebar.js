@@ -896,11 +896,16 @@ function renderTabError(message) {
 // ── Open in web app ───────────────────────────────────────────────────────────
 
 function openInWebApp() {
-  let url = `https://ashwinasthana.github.io/RepoLens/?repoUrl=${encodeURIComponent(repoUrl)}`
-  if (selectedPath) {
-    url += `&file=${encodeURIComponent(selectedPath)}`
-  }
-  window.open(url, '_blank')
+  chrome.storage.sync.get(['groqApiKey'], res => {
+    let url = `https://ashwinasthana.github.io/RepoLens/?repoUrl=${encodeURIComponent(repoUrl)}`
+    if (selectedPath) {
+      url += `&file=${encodeURIComponent(selectedPath)}`
+    }
+    if (res.groqApiKey) {
+      url += `&auth=${encodeURIComponent(res.groqApiKey)}`
+    }
+    window.open(url, '_blank')
+  })
 }
 
 // ── UI helpers ────────────────────────────────────────────────────────────────

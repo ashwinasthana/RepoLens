@@ -220,7 +220,7 @@ function SummaryTab({ file, content, analysis }) {
   const { local, npm } = parseDeps(content)
   const exports_ = parseExports(content)
   const summary = analysis?.summary
-  const isLoading = !summary
+  const isLoading = !summary || summary?.loading
   const hasError = summary?.error
 
   function handleCopy() {
@@ -334,7 +334,7 @@ function SummaryTab({ file, content, analysis }) {
 
 function GraphTab({ file, content, analysis }) {
   const graphData = analysis?.graph
-  const isLoading = !graphData
+  const isLoading = !graphData || graphData?.loading
   const hasError = graphData?.error
   const filename = file.split('/').pop()
   const { local, npm } = parseDeps(content)
@@ -473,7 +473,7 @@ const KIND_COLORS = {
 
 function DefinitionsTab({ file, content, analysis }) {
   const defsData = analysis?.definitions
-  const isLoading = !defsData
+  const isLoading = !defsData || defsData?.loading
   const hasError = defsData?.error
   const localExports = parseExports(content)
 
@@ -567,7 +567,7 @@ function DefinitionsTab({ file, content, analysis }) {
 
 function OnboardingTab({ file, analysis }) {
   const data = analysis?.onboarding
-  const isLoading = !data
+  const isLoading = !data || data?.loading
   const hasError = data?.error
 
   if (isLoading) return <div className={styles.tabContent}><Skeleton rows={8} /></div>
