@@ -180,6 +180,9 @@
       })
 
       document.body.appendChild(iframe)
+      
+      const btn = document.getElementById('repolens-btn')
+      if (btn) btn.style.display = 'none'
 
       // ── Resize handle ───────────────────────────────────────────────────
       resizeBar = document.createElement('div')
@@ -274,6 +277,9 @@
       if (iframe) iframe.remove()
       iframe = null
       if (resizeBar) { resizeBar.remove(); resizeBar = null }
+      
+      const btn = document.getElementById('repolens-btn')
+      if (btn) btn.style.display = 'flex'
     }, { once: true })
   }
 
