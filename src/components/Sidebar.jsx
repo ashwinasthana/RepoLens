@@ -4,7 +4,7 @@ import {
   IconBrandJavascript, IconBrandTypescript, IconBrandReact,
   IconBrandPython, IconMarkdown, IconBraces, IconBrandHtml5,
   IconBrandCss3, IconTerminal, IconDatabase, IconChevronRight,
-  IconLayoutSidebar, IconLayoutSidebarFilled,
+  IconLayoutSidebar, IconLayoutSidebarFilled, IconSearch, IconX,
 } from '@tabler/icons-react'
 import styles from './Sidebar.module.css'
 
@@ -37,10 +37,28 @@ function countNodes(node) {
   return { files, folders }
 }
 
-function TreeNode({ node, depth, onFileClick, selectedFile }) {
+// Filter tree to only include nodes matching the search query
+function filterTree(node, query) {
+  if (!query) return node
+  const q = query.toLowerCase()
+
+  if (node.type !== 'tree') {
+    return node.name.toLowerCase().includes(q) || node.path.toLowerCase().includes(q) ? node : null
+  }
+
+  const filteredChildren = (node.children ?? [])
+    .map(child => filterTree(child, query))
+    .filter(Boolean)
+
+  if (filteredChildren.length === 0) return null
+  return { ...node, children: filteredChildren }
+}
+
+function TreeNode({ node, depth, onFileClick, selectedFile, forceOpen }) {
   const [open, setOpen] = useState(depth < 2)
   const isDir = node.type === 'tree'
   const indent = depth * 16
+  const isOpen = forceOpen || open
 
   if (!isDir) {
     const selected = selectedFile === node.path
@@ -57,7 +75,7 @@ function TreeNode({ node, depth, onFileClick, selectedFile }) {
     )
   }
 
-  const FolderIcon = open ? IconFolderOpen : IconFolder
+  const FolderIcon = isOpen ? IconFolderOpen : IconFolder
 
   return (
     <div>
@@ -66,7 +84,7 @@ function TreeNode({ node, depth, onFileClick, selectedFile }) {
         style={{ paddingLeft: 12 + indent }}
         onClick={() => setOpen(o => !o)}
       >
-        <span className={`${styles.arrow} ${open ? styles.arrowOpen : ''}`}>
+        <span className={`${styles.arrow} ${isOpen ? styles.arrowOpen : ''}`}>
           <IconChevronRight size={12} stroke={2} />
         </span>
         <span className={styles.folderIcon}>
@@ -74,7 +92,7 @@ function TreeNode({ node, depth, onFileClick, selectedFile }) {
         </span>
         <span className={styles.folderName}>{node.name}</span>
       </div>
-      <div className={`${styles.children} ${open ? styles.childrenOpen : ''}`}>
+      <div className={`${styles.children} ${isOpen ? styles.childrenOpen : ''}`}>
         {node.children.map(child => (
           <TreeNode
             key={child.path || child.name}
@@ -82,6 +100,7 @@ function TreeNode({ node, depth, onFileClick, selectedFile }) {
             depth={depth + 1}
             onFileClick={onFileClick}
             selectedFile={selectedFile}
+            forceOpen={forceOpen}
           />
         ))}
       </div>
@@ -90,7 +109,13 @@ function TreeNode({ node, depth, onFileClick, selectedFile }) {
 }
 
 export default function Sidebar({ tree, onFileClick, selectedFile, collapsed, onToggle, drawerOpen, onDrawerClose }) {
+  const [search, setSearch] = useState('')
   const counts = useMemo(() => tree ? countNodes(tree) : { files: 0, folders: 0 }, [tree])
+
+  const filteredTree = useMemo(() => {
+    if (!tree || !search.trim()) return tree
+    return filterTree(tree, search.trim())
+  }, [tree, search])
 
   const ToggleIcon = collapsed ? IconLayoutSidebar : IconLayoutSidebarFilled
 
@@ -108,21 +133,41 @@ export default function Sidebar({ tree, onFileClick, selectedFile, collapsed, on
       {!collapsed && (
         <>
           {tree && (
-            <div className={styles.counts}>
-              {counts.files} files, {counts.folders} folders
-            </div>
+            <>
+              <div className={styles.counts}>
+                {counts.files} files, {counts.folders} folders
+              </div>
+              {/* Search input */}
+              <div className={styles.searchWrap}>
+                <IconSearch size={13} stroke={1.5} className={styles.searchIcon} />
+                <input
+                  className={styles.searchInput}
+                  placeholder="Search files…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+                {search && (
+                  <button className={styles.searchClear} onClick={() => setSearch('')}>
+                    <IconX size={12} stroke={2} />
+                  </button>
+                )}
+              </div>
+            </>
           )}
           <div className={styles.tree}>
-            {!tree ? (
+            {!filteredTree ? (
               <span className={styles.empty}>No repo loaded</span>
+            ) : !filteredTree.children?.length ? (
+              <span className={styles.empty}>No files match "{search}"</span>
             ) : (
-              tree.children.map(child => (
+              filteredTree.children.map(child => (
                 <TreeNode
                   key={child.path || child.name}
                   node={child}
                   depth={0}
                   onFileClick={onFileClick}
                   selectedFile={selectedFile}
+                  forceOpen={!!search}
                 />
               ))
             )}

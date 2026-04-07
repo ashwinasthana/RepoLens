@@ -53,7 +53,7 @@ export async function fetchFileTree(owner, repo) {
   return root
 }
 
-// 3. Fetch and decode a file's content from base64
+// 4. Fetch and decode a file's content from base64
 export async function fetchFileContent(owner, repo, path) {
   const data = await ghFetch(`/repos/${owner}/${repo}/contents/${path}`)
   if (data.encoding !== 'base64') throw new Error(`Unexpected encoding: ${data.encoding}`)

@@ -4,10 +4,10 @@
   align-items: center;
   gap: 8px;
   padding: 0 16px;
-  background: #161b22;
+  background: var(--bg-elevated);
   border-top: 1px solid var(--border);
   font-size: 11px;
-  color: #8b949e;
+  color: var(--text-muted);
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -17,11 +17,20 @@
   align-items: center;
   gap: 5px;
   white-space: nowrap;
+  transition: color 0.15s ease;
 }
 
-.sep { opacity: 0.4; }
+.item:hover { color: var(--text); }
+
+.sep { opacity: 0.3; }
 
 .dot {
-  color: #3fb950;
+  color: var(--green);
   flex-shrink: 0;
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
 }

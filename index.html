@@ -3,13 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="RepoLens — AI-powered GitHub repository analyzer. Understand any repo in seconds." />
+    <meta name="description" content="RepoLens — AI-powered GitHub repository analyzer. Understand any codebase in seconds with 4 parallel AI analyses, dependency graphs, and developer onboarding guides." />
+    <meta name="keywords" content="GitHub, repository analyzer, AI code analysis, dependency graph, developer onboarding, code viewer" />
+    <meta name="author" content="Ashwin Asthana" />
+    <meta name="theme-color" content="#0d1117" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="RepoLens — AI Repository Analyzer" />
+    <meta property="og:description" content="Understand any GitHub repository in seconds with AI-powered analysis." />
+    <meta property="og:type" content="website" />
+
     <title>RepoLens — AI Repository Analyzer</title>
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
     <!-- Satoshi (headings) -->
     <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet" />
     <!-- Inter (body) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- JetBrains Mono (code) -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <style>
+      /* Critical CSS to prevent FOUC */
+      body { background: #0d1117; margin: 0; }
+      #root { height: 100vh; display: flex; flex-direction: column; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
