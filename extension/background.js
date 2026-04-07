@@ -123,8 +123,8 @@ function getCredentials() {
   return new Promise(resolve =>
     chrome.storage.sync.get(['githubToken', 'groqApiKey'], res => {
       resolve({
-        githubToken: res.githubToken || 'github_pat_YOUR_TOKEN_HERE',
-        groqApiKey: res.groqApiKey || 'gsk_YOUR_TOKEN_HERE'
+        githubToken: res.githubToken || '',
+        groqApiKey: res.groqApiKey || ''
       })
     })
   )
