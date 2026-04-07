@@ -25,7 +25,7 @@
 
     const btn = document.createElement('button')
     btn.id = 'repolens-btn'
-    btn.textContent = '🔍 RepoLens'
+    btn.innerHTML = '🔍 <strong>RepoLens</strong>'
 
     Object.assign(btn.style, {
       all:          'unset',
@@ -33,22 +33,33 @@
       top:          '70px',
       right:        '20px',
       zIndex:       '9999',
-      padding:      '8px 14px',
-      background:   '#238636',
-      color:        '#ffffff',
-      border:       '1px solid rgba(240,246,252,0.1)',
-      borderRadius: '6px',
-      fontFamily:   '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      padding:      '8px 16px',
+      background:   'linear-gradient(135deg, #58a6ff 0%, #4d96e8 100%)',
+      color:        '#0d1117',
+      border:       '1px solid rgba(88,166,255,0.3)',
+      borderRadius: '8px',
+      fontFamily:   'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       fontSize:     '13px',
       fontWeight:   '600',
       cursor:       'pointer',
-      boxShadow:    '0 4px 12px rgba(0,0,0,0.4)',
+      boxShadow:    '0 4px 16px rgba(88,166,255,0.3), 0 1px 3px rgba(0,0,0,0.2)',
       lineHeight:   '1.4',
-      display:      'block',
+      display:      'flex',
+      alignItems:   'center',
+      gap:          '4px',
+      transition:   'all 0.2s ease',
     })
 
-    btn.addEventListener('mouseenter', () => { btn.style.background = '#2ea043' })
-    btn.addEventListener('mouseleave', () => { btn.style.background = '#238636' })
+    btn.addEventListener('mouseenter', () => {
+      btn.style.background = 'linear-gradient(135deg, #79b8ff 0%, #58a6ff 100%)'
+      btn.style.boxShadow = '0 6px 20px rgba(88,166,255,0.4), 0 2px 6px rgba(0,0,0,0.3)'
+      btn.style.transform = 'translateY(-2px)'
+    })
+    btn.addEventListener('mouseleave', () => {
+      btn.style.background = 'linear-gradient(135deg, #58a6ff 0%, #4d96e8 100%)'
+      btn.style.boxShadow = '0 4px 16px rgba(88,166,255,0.3), 0 1px 3px rgba(0,0,0,0.2)'
+      btn.style.transform = 'translateY(0)'
+    })
     btn.addEventListener('click', openSidebar)
 
     document.body.appendChild(btn)
@@ -79,13 +90,13 @@
         position:   'fixed',
         top:        '0',
         right:      '0',
-        width:      '400px',
+        width:      '420px',
         height:     '100vh',
         zIndex:     '10000',
         border:     'none',
-        boxShadow:  '-4px 0 24px rgba(0,0,0,0.5)',
+        boxShadow:  '-4px 0 32px rgba(0,0,0,0.6)',
         transform:  'translateX(100%)',
-        transition: 'transform 0.25s ease',
+        transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
         display:    'block',
       })
 
@@ -96,7 +107,7 @@
       Object.assign(resizeBar.style, {
         position:   'fixed',
         top:        '0',
-        right:      '400px',
+        right:      '420px',
         width:      '6px',
         height:     '100vh',
         zIndex:     '10001',
@@ -113,6 +124,7 @@
         startX = e.clientX
         startW = parseInt(iframe.style.width, 10)
         document.body.style.userSelect = 'none'
+        iframe.style.pointerEvents = 'none'
         resizeBar.style.background = 'rgba(88,166,255,0.6)'
         document.addEventListener('mousemove', onMouseMove)
         document.addEventListener('mouseup', onMouseUp)
@@ -126,6 +138,7 @@
 
       function onMouseUp() {
         document.body.style.userSelect = ''
+        iframe.style.pointerEvents = 'auto'
         resizeBar.style.background = 'transparent'
         document.removeEventListener('mousemove', onMouseMove)
         document.removeEventListener('mouseup', onMouseUp)

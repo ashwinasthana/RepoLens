@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RepoLens</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="sidebar.css" />
 </head>
@@ -40,6 +43,9 @@
   <!-- Error banner -->
   <div id="error-bar"></div>
 
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
   <!-- Body -->
   <div id="body">
     <div id="loading-overlay">
@@ -51,6 +57,14 @@
     <div id="tree-panel">
       <div id="tree-header">
         <i class="ti ti-files"></i> <span id="tree-count">Files</span>
+      </div>
+      <!-- Search -->
+      <div id="tree-search-wrap">
+        <i class="ti ti-search" id="tree-search-icon"></i>
+        <input type="text" id="tree-search" placeholder="Search files…" />
+        <button id="tree-search-clear" style="display:none;">
+          <i class="ti ti-x"></i>
+        </button>
       </div>
       <div id="tree-scroll">
         <div class="detail-empty">
@@ -73,6 +87,27 @@
   <div id="status-bar">
     <i class="ti ti-point-filled" id="status-dot" style="color:#3fb950;font-size:10px"></i>
     <span id="status-text">No repository loaded</span>
+  </div>
+
+  <!-- Chat Widget -->
+  <button id="chat-fab" style="display: none;">
+    <i class="ti ti-sparkles"></i> Ask AI
+  </button>
+  <div id="chat-widget" style="display: none;">
+    <div id="chat-header">
+      <div id="chat-title"><i class="ti ti-sparkles"></i> RepoLens Chat</div>
+      <button id="chat-close"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="chat-messages">
+      <div class="chat-msg assistant">
+        <div class="chat-avatar"><i class="ti ti-robot"></i></div>
+        <div class="chat-text">What would you like to know about this repository?</div>
+      </div>
+    </div>
+    <form id="chat-form">
+      <input type="text" id="chat-input" placeholder="Ask a question..." autocomplete="off" />
+      <button type="submit" id="chat-send"><i class="ti ti-send"></i></button>
+    </form>
   </div>
 
 </div>
